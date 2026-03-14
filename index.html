@@ -1010,17 +1010,15 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
 var LOCAL_STORAGE_KEY = 'uzi_recipeBuilder_v2';
 
 // ===================== SUPABASE CONFIG =====================
-// Replace these two values with your own from supabase.com → Settings → API
 var SUPABASE_URL  = 'https://mmutvelumnnodbknjlfx.supabase.co';
 var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tdXR2ZWx1bW5ub2Ria25qbGZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDcxNTgsImV4cCI6MjA4OTA4MzE1OH0.psKpCQsfBdgUS51rnq6WYM5tN6ducDpJr9kkvFkgZlk';
 
-var sb = null;   // Supabase client, initialised in initSupabase()
+// Initialise Supabase immediately — do NOT wait for DOMContentLoaded
+var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 var currentUser = null;
-var isAuthMode  = 'signin';  // 'signin' or 'signup'
+var isAuthMode  = 'signin';
 
-function initSupabase() {
-  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-}
+function initSupabase() { /* already done above */ }
 
 // ===================== AUTH =====================
 function showLoginMsg(msg, type) {
@@ -2633,64 +2631,48 @@ function switchTab(tab) {
 
 // ===================== INIT =====================
 document.addEventListener('DOMContentLoaded', function() {
-  // Init Supabase FIRST before anything else
-  initSupabase();
   populateMeasurementDropdown();
   initTaskSortable();
   initSidebarResize();
   showInputPanel('instruction');
 
-  // Boot sequence — single authoritative check on page load
+  // Single function that boots the app for a logged-in user
   function bootApp(user) {
     hideLoginScreen(user);
     loadAllRecipes().then(function() {
-      if (savedRecipes.length > 0) loadRecipe(savedRecipes[0].id);
-      else resetEditorState();
+      if (savedRecipes.length > 0) {
+        loadRecipe(savedRecipes[0].id);
+      } else {
+        resetEditorState();
+      }
+    }).catch(function(e) {
+      console.error('bootApp loadAllRecipes error:', e);
+      resetEditorState();
     });
   }
 
-  // Check for existing session first (handles refresh / returning user)
-  sb.auth.getSession().then(function(result) {
-    var session = result.data && result.data.session;
+  // On page load — check for existing session (handles refresh)
+  sb.auth.getSession().then(function(response) {
+    var session = response.data ? response.data.session : null;
     if (session && session.user) {
       bootApp(session.user);
     } else {
       showLoginScreen();
       resetEditorState();
     }
-  }).catch(function(err) {
-    console.error('getSession error:', err);
-    showLoginScreen();
-    resetEditorState();
   });
 
-  // Auth state listener — only handles FUTURE changes after initial load
-  var booted = false;
+  // Auth state changes — handles login and logout AFTER page load
   sb.auth.onAuthStateChange(function(event, session) {
-    if (event === 'SIGNED_IN' && session && session.user) {
-      if (!booted) {
-        // First SIGNED_IN — only act if getSession didn't already boot
-        sb.auth.getSession().then(function(r) {
-          if (!booted) {
-            booted = true;
-            bootApp(session.user);
-          }
-        });
-      }
+    console.log('Auth event:', event, session ? session.user.email : 'no session');
+    if (event === 'SIGNED_IN' && session && session.user && !currentUser) {
+      bootApp(session.user);
     } else if (event === 'SIGNED_OUT') {
-      booted = false;
       currentUser = null;
       savedRecipes = [];
       updateSavedRecipesUI();
-      resetEditorState();
       showLoginScreen();
     }
-  });
-
-  // Override submitAuthForm to set booted=true after successful login
-  var _origSubmit = window.submitAuthForm;
-  document.getElementById('auth-submit-btn').addEventListener('click', function() {
-    booted = false; // allow next SIGNED_IN to boot
   });
 
   // New Task button
