@@ -2630,58 +2630,57 @@ function switchTab(tab) {
 }
 
 // ===================== INIT =====================
+
+// bootApp at script scope — Supabase fires onAuthStateChange before DOMContentLoaded
+function bootApp(user) {
+  currentUser = user;
+  hideLoginScreen(user);
+  loadAllRecipes(user).then(function() {
+    if (savedRecipes.length > 0) {
+      loadRecipe(savedRecipes[0].id);
+    } else {
+      resetEditorState();
+    }
+  }).catch(function(e) {
+    console.error('bootApp error:', e);
+    resetEditorState();
+  });
+}
+
+// Auth listener at script scope so it works immediately
+sb.auth.onAuthStateChange(function(event, session) {
+  console.log('Auth event:', event, session ? session.user.email : 'no session');
+  if (event === 'SIGNED_IN' && session && session.user && !currentUser) {
+    bootApp(session.user);
+  } else if (event === 'SIGNED_OUT') {
+    currentUser = null;
+    savedRecipes = [];
+    if (document.getElementById('saved-recipes-container')) updateSavedRecipesUI();
+    if (document.getElementById('login-screen')) showLoginScreen();
+  }
+});
+
 document.addEventListener('DOMContentLoaded', function() {
   populateMeasurementDropdown();
   initTaskSortable();
   initSidebarResize();
   showInputPanel('instruction');
 
-  // Single function that boots the app for a logged-in user
-  function bootApp(user) {
-    currentUser = user;  // set BEFORE loadAllRecipes so all functions have it
-    hideLoginScreen(user);
-    loadAllRecipes(user).then(function() {
-      if (savedRecipes.length > 0) {
-        loadRecipe(savedRecipes[0].id);
-      } else {
-        resetEditorState();
-      }
-    }).catch(function(e) {
-      console.error('bootApp error:', e);
-      resetEditorState();
-    });
-  }
-
-  // On page load — check for existing session (handles refresh)
+  // Check for existing session on page load (handles refresh / returning user)
   sb.auth.getSession().then(function(response) {
     var session = response.data ? response.data.session : null;
     if (session && session.user) {
-      bootApp(session.user);
+      if (!currentUser) bootApp(session.user);
     } else {
       showLoginScreen();
       resetEditorState();
     }
   });
 
-  // Auth state changes — handles login and logout AFTER page load
-  sb.auth.onAuthStateChange(function(event, session) {
-    console.log('Auth event:', event, session ? session.user.email : 'no session');
-    if (event === 'SIGNED_IN' && session && session.user && !currentUser) {
-      bootApp(session.user);
-    } else if (event === 'SIGNED_OUT') {
-      currentUser = null;
-      savedRecipes = [];
-      updateSavedRecipesUI();
-      showLoginScreen();
-    }
-  });
-
-  // New Task button
   document.getElementById('new-task-btn').addEventListener('click', function() {
     promptNewTask();
   });
 
-  // Close modals on overlay click
   document.getElementById('grocery-modal').addEventListener('click', function(e) {
     if (e.target === document.getElementById('grocery-modal')) closeGroceryModal();
   });
