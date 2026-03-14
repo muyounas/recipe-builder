@@ -1146,18 +1146,10 @@ function autoSave() {
 }
 
 // ===================== STORAGE =====================
-function loadAllRecipes() {
-  try {
-    var stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-    savedRecipes = stored ? JSON.parse(stored) : [];
-  } catch(e) { savedRecipes = []; }
-  updateSavedRecipesUI();
-}
-
-function saveAllRecipes() {
-  try { localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(savedRecipes)); } catch(e) {}
-  updateSavedRecipesUI();
-}
+// NOTE: Real implementations are below in CLOUD STORAGE section
+// These stubs are here only to satisfy any early references
+function loadAllRecipes() { return Promise.resolve(); }
+function saveAllRecipes() { updateSavedRecipesUI(); }
 
 function updateRecipeStateFromUI() {
   currentRecipe.title       = document.getElementById('recipe-title').value.trim() || 'Untitled Recipe';
