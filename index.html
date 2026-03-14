@@ -753,8 +753,8 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
 .folder-item .folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .folder-item .folder-count { color: rgba(240,201,110,0.38); font-size: 0.76em; flex-shrink: 0; }
 .folder-item .folder-actions { display: flex; gap: 4px; flex-shrink: 0; }
-.folder-item .folder-share { color: #6aaa96; opacity: 0.6; cursor: pointer; font-size: 0.78em; }
-.folder-item .folder-share:hover { opacity: 1; }
+.folder-item .folder-share { color: #6aaa96; opacity: 0.75; cursor: pointer; font-size: 0.85em; padding: 2px 3px; }
+.folder-item .folder-share:hover { opacity: 1; color: #f0c96e; }
 .folder-item .folder-del { color: #f08080; opacity: 0.5; cursor: pointer; font-size: 0.78em; }
 .folder-item .folder-del:hover { opacity: 1; }
 .folder-recipes { padding-left: 18px; display: none; }
@@ -877,9 +877,14 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
     <div class="sidebar-section">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
         <div class="sidebar-section-title" style="margin-bottom:0;">Saved Recipes</div>
-        <button onclick="createFolder()" title="New folder" style="background:none;border:none;color:rgba(240,201,110,0.50);cursor:pointer;font-size:0.82em;padding:2px 5px;transition:color 0.15s;" onmouseover="this.style.color='#f0c96e'" onmouseout="this.style.color='rgba(240,201,110,0.50)'">
-          <i class="fa-solid fa-folder-plus"></i>
-        </button>
+        <div style="display:flex;gap:4px;">
+          <button onclick="downloadRecipeAsJSON()" title="Download current recipe as JSON" style="background:none;border:none;color:rgba(240,201,110,0.50);cursor:pointer;font-size:0.82em;padding:2px 5px;transition:color 0.15s;" onmouseover="this.style.color='#f0c96e'" onmouseout="this.style.color='rgba(240,201,110,0.50)'">
+            <i class="fa-solid fa-download"></i>
+          </button>
+          <button onclick="createFolder()" title="New folder" style="background:none;border:none;color:rgba(240,201,110,0.50);cursor:pointer;font-size:0.82em;padding:2px 5px;transition:color 0.15s;" onmouseover="this.style.color='#f0c96e'" onmouseout="this.style.color='rgba(240,201,110,0.50)'">
+            <i class="fa-solid fa-folder-plus"></i>
+          </button>
+        </div>
       </div>
     </div>
     <div class="sidebar-panel-inner">
@@ -899,7 +904,7 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
       <i class="fa-solid fa-file-circle-plus"></i> New Recipe
     </button>
     <button class="sidebar-btn purple" onclick="openAiImportModal()">
-      <i class="fa-solid fa-wand-magic-sparkles"></i> Import Recipe from URL
+      <i class="fa-solid fa-wand-magic-sparkles"></i> Import Recipe
     </button>
   </div>
 </aside>
@@ -941,15 +946,7 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
     <div class="card" id="settings-card">
       <div class="card-header">
         <h2><i class="fa-solid fa-sliders"></i> Recipe Settings</h2>
-        <div class="header-right">
-          <span id="autosave-status" class="autosave-status saved"><i class="fa-solid fa-circle-check"></i> Saved</span>
-          <div class="btn-group">
-            <button class="btn btn-muted btn-sm" onclick="saveCurrentRecipe()"><i class="fa-solid fa-floppy-disk"></i> Save</button>
-            <button class="btn btn-muted btn-sm" onclick="triggerUpload()"><i class="fa-solid fa-arrow-up-from-bracket"></i> Upload</button>
-            <button class="btn btn-muted btn-sm" onclick="downloadRecipeAsJSON()"><i class="fa-solid fa-arrow-down-to-bracket"></i> Download</button>
-            <button class="btn btn-muted btn-sm" onclick="generateShareableText()"><i class="fa-solid fa-share-nodes"></i> Share</button>
-          </div>
-        </div>
+        <span id="autosave-status" class="autosave-status saved"><i class="fa-solid fa-circle-check"></i> Saved</span>
       </div>
       <div class="card-body">
         <div class="field-group" style="grid-column: span 2;">
@@ -1043,21 +1040,42 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
 <div class="modal-overlay" id="ai-import-modal">
   <div class="modal" style="max-width:540px;">
     <div class="modal-header">
-      <h2><i class="fa-solid fa-wand-magic-sparkles" style="color:var(--p-teal);margin-right:8px;"></i> Import Recipe from URL</h2>
+      <h2><i class="fa-solid fa-wand-magic-sparkles" style="color:var(--p-teal);margin-right:8px;"></i> Import Recipe</h2>
       <div style="display:flex;align-items:center;gap:10px;">
         <span class="ai-badge"><i class="fa-solid fa-robot"></i> AI Powered</span>
         <button class="modal-close" onclick="closeAiImportModal()"><i class="fa-solid fa-xmark"></i></button>
       </div>
     </div>
     <div class="modal-body">
-      <p class="ai-desc">Paste any URL — a recipe website, YouTube video, TikTok, Instagram, or blog post. Claude will read the page and fill in your recipe card automatically.</p>
-      <div class="ai-input-row">
-        <input type="url" id="ai-video-url" placeholder="https://... any recipe URL">
-        <button class="btn btn-primary" id="ai-import-btn" onclick="importFromVideo()">
-          <i class="fa-solid fa-wand-magic-sparkles"></i> Build
+      <!-- AI from URL -->
+      <div style="margin-bottom:18px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span class="ai-badge"><i class="fa-solid fa-robot"></i> AI Powered</span>
+          <span style="font-size:0.80em;font-weight:700;color:var(--ink);">Import from URL</span>
+        </div>
+        <p class="ai-desc" style="margin-bottom:10px;">Paste any URL — a recipe website, YouTube, TikTok, Instagram, or blog. Claude reads the page and fills your recipe card automatically.</p>
+        <div class="ai-input-row">
+          <input type="url" id="ai-video-url" placeholder="https://... any recipe URL">
+          <button class="btn btn-primary" id="ai-import-btn" onclick="importFromVideo()">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Build
+          </button>
+        </div>
+        <div id="ai-status" class="ai-status" style="display:none;margin-top:12px;"></div>
+      </div>
+      <!-- Divider -->
+      <div style="display:flex;align-items:center;gap:10px;margin:16px 0;">
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+        <span style="font-size:0.74em;color:var(--ink-light);font-weight:700;letter-spacing:1px;text-transform:uppercase;">or</span>
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+      </div>
+      <!-- Upload JSON -->
+      <div>
+        <div style="font-size:0.80em;font-weight:700;color:var(--ink);margin-bottom:6px;"><i class="fa-solid fa-file-code" style="color:var(--p-teal);margin-right:6px;"></i>Upload Recipe File (JSON)</div>
+        <p class="ai-desc" style="margin-bottom:10px;">Upload a previously downloaded recipe JSON file to load it into the editor.</p>
+        <button class="btn btn-outline btn-sm" onclick="triggerUpload();closeAiImportModal();" style="width:100%;justify-content:center;">
+          <i class="fa-solid fa-arrow-up-from-bracket"></i> Choose File to Upload
         </button>
       </div>
-      <div id="ai-status" class="ai-status" style="display:none;margin-top:14px;"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-muted btn-sm" onclick="closeAiImportModal()">Close</button>
@@ -1385,6 +1403,26 @@ function updateSavedRecipesUI() {
   renderFolders();
   var container = document.getElementById('saved-recipes-container');
   container.innerHTML = '';
+
+  // Make main list a drop zone — dropping here removes recipe from any folder
+  container.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    container.style.outline = '2px dashed rgba(106,170,150,0.45)';
+    container.style.borderRadius = '7px';
+  });
+  container.addEventListener('dragleave', function() {
+    container.style.outline = '';
+  });
+  container.addEventListener('drop', function(e) {
+    e.preventDefault();
+    container.style.outline = '';
+    var recipeId   = parseInt(e.dataTransfer.getData('recipeId'));
+    var fromFolder = parseInt(e.dataTransfer.getData('fromFolderId'));
+    if (recipeId && fromFolder) {
+      removeRecipeFromFolder(fromFolder, recipeId);
+      toast('Recipe moved out of folder.');
+    }
+  });
 
   // Only show recipes NOT already in any folder
   var folderedIds = [];
@@ -2932,15 +2970,25 @@ function renderFolders() {
     if (recipesInFolder.length === 0) {
       recipesEl.innerHTML = '<p style="color:rgba(240,201,110,0.25);font-size:0.74em;padding:4px 8px;font-style:italic;">Drop recipes here</p>';
     } else {
-      recipesInFolder.forEach(function(recipe) {
-        var ri = document.createElement('div');
-        ri.className = 'saved-item' + (recipe.id === currentRecipe.id ? ' active-recipe' : '');
-        ri.style.cssText = 'font-size:0.78em;margin:2px 0;padding:6px 8px;';
-        ri.innerHTML =
-          '<span class="s-title" onclick="loadRecipe(' + recipe.id + ')">' + escapeHtml(recipe.title) + '</span>' +
-          '<span class="s-del" onclick="removeRecipeFromFolder(' + folder.id + ',' + recipe.id + ')" title="Remove from folder" style="margin-left:4px;"><i class="fa-solid fa-xmark"></i></span>';
-        recipesEl.appendChild(ri);
-      });
+       recipesInFolder.forEach(function(recipe) {
+         var ri = document.createElement('div');
+         ri.className = 'saved-item' + (recipe.id === currentRecipe.id ? ' active-recipe' : '');
+         ri.style.cssText = 'font-size:0.78em;margin:2px 0;padding:6px 8px;cursor:grab;';
+         ri.setAttribute('draggable', 'true');
+         ri.innerHTML =
+           '<i class="fa-solid fa-grip-vertical" style="color:rgba(240,201,110,0.22);font-size:0.72em;flex-shrink:0;margin-right:4px;"></i>' +
+           '<span class="s-title" onclick="loadRecipe(' + recipe.id + ')">' + escapeHtml(recipe.title) + '</span>' +
+           '<span class="s-del" onclick="removeRecipeFromFolder(' + folder.id + ',' + recipe.id + ')" title="Remove from folder" style="margin-left:4px;"><i class="fa-solid fa-xmark"></i></span>';
+         (function(r, fid) {
+           ri.addEventListener('dragstart', function(e) {
+             e.dataTransfer.setData('recipeId', String(r.id));
+             e.dataTransfer.setData('fromFolderId', String(fid));
+             ri.style.opacity = '0.4';
+           });
+           ri.addEventListener('dragend', function() { ri.style.opacity = ''; });
+         })(recipe, folder.id);
+         recipesEl.appendChild(ri);
+       });
     }
     wrapper.appendChild(recipesEl);
     container.appendChild(wrapper);
