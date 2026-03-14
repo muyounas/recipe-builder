@@ -1066,27 +1066,57 @@ function submitAuthForm() {
   btn.disabled = true;
   btn.textContent = isAuthMode === 'signup' ? 'Creating account…' : 'Signing in…';
 
-  var promise = isAuthMode === 'signup'
-    ? sb.auth.signUp({ email: email, password: password, options: { data: { full_name: name || email.split('@')[0] } } })
-    : sb.auth.signInWithPassword({ email: email, password: password });
-
-  promise.then(function(result) {
-    btn.disabled = false;
-    btn.textContent = isAuthMode === 'signup' ? 'Create Account' : 'Sign In';
-    if (result.error) { showLoginMsg(result.error.message, 'error'); return; }
-    if (isAuthMode === 'signup' && result.data && result.data.user && !result.data.session) {
-      showLoginMsg('Check your email to confirm your account, then sign in.', 'success');
-      toggleAuthMode();
-    }
-    // Session established — onAuthStateChange will handle the rest
-  });
+  if (isAuthMode === 'signup') {
+    sb.auth.signUp({
+      email: email,
+      password: password,
+      options: { data: { full_name: name || email.split('@')[0] } }
+    }).then(function(result) {
+      btn.disabled = false;
+      btn.textContent = 'Create Account';
+      if (result.error) { showLoginMsg(result.error.message, 'error'); return; }
+      if (result.data && result.data.user && !result.data.session) {
+        showLoginMsg('Check your email to confirm your account, then sign in.', 'success');
+        toggleAuthMode();
+      } else if (result.data && result.data.session) {
+        // Auto-confirmed (email confirm disabled) — boot directly
+        hideLoginScreen(result.data.session.user);
+        loadAllRecipes().then(function() {
+          if (savedRecipes.length > 0) loadRecipe(savedRecipes[0].id);
+          else resetEditorState();
+        });
+      }
+    });
+  } else {
+    sb.auth.signInWithPassword({ email: email, password: password })
+      .then(function(result) {
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+        if (result.error) { showLoginMsg(result.error.message, 'error'); return; }
+        if (result.data && result.data.session && result.data.session.user) {
+          // Directly boot — don't rely on listener
+          hideLoginScreen(result.data.session.user);
+          loadAllRecipes().then(function() {
+            if (savedRecipes.length > 0) loadRecipe(savedRecipes[0].id);
+            else resetEditorState();
+          });
+        }
+      });
+  }
 }
 
 function logOut() {
+  clearTimeout(autoSaveTimer);
   sb.auth.signOut().then(function() {
     currentUser = null;
     savedRecipes = [];
-    resetEditorState();
+    currentRecipe = { id: Date.now(), title: 'Untitled Recipe', tasks: [], yield: null, servingSize: null };
+    currentTaskId = null;
+    taskIdCounter = 1;
+    itemIdCounter = 1;
+    updateTaskListUI();
+    updateSavedRecipesUI();
+    document.getElementById('sidebar-user-row').style.display = 'none';
     showLoginScreen();
   });
 }
@@ -2581,40 +2611,64 @@ function switchTab(tab) {
 
 // ===================== INIT =====================
 document.addEventListener('DOMContentLoaded', function() {
+  // Init Supabase FIRST before anything else
   initSupabase();
   populateMeasurementDropdown();
   initTaskSortable();
   initSidebarResize();
   showInputPanel('instruction');
 
-  // Listen for auth state changes (login, logout)
-  sb.auth.onAuthStateChange(function(event, session) {
-    if (event === 'SIGNED_IN' && session && session.user) {
-      hideLoginScreen(session.user);
-      loadAllRecipes().then(function() {
-        if (savedRecipes.length > 0) loadRecipe(savedRecipes[0].id);
-        else resetEditorState();
-      });
-    } else if (event === 'SIGNED_OUT') {
-      currentUser = null;
-      savedRecipes = [];
-      updateSavedRecipesUI();
-      showLoginScreen();
-    }
-  });
+  // Boot sequence — single authoritative check on page load
+  function bootApp(user) {
+    hideLoginScreen(user);
+    loadAllRecipes().then(function() {
+      if (savedRecipes.length > 0) loadRecipe(savedRecipes[0].id);
+      else resetEditorState();
+    });
+  }
 
-  // Check for an existing session on page load (returning user)
+  // Check for existing session first (handles refresh / returning user)
   sb.auth.getSession().then(function(result) {
-    if (result.data && result.data.session && result.data.session.user) {
-      hideLoginScreen(result.data.session.user);
-      loadAllRecipes().then(function() {
-        if (savedRecipes.length > 0) loadRecipe(savedRecipes[0].id);
-        else resetEditorState();
-      });
+    var session = result.data && result.data.session;
+    if (session && session.user) {
+      bootApp(session.user);
     } else {
       showLoginScreen();
       resetEditorState();
     }
+  }).catch(function(err) {
+    console.error('getSession error:', err);
+    showLoginScreen();
+    resetEditorState();
+  });
+
+  // Auth state listener — only handles FUTURE changes after initial load
+  var booted = false;
+  sb.auth.onAuthStateChange(function(event, session) {
+    if (event === 'SIGNED_IN' && session && session.user) {
+      if (!booted) {
+        // First SIGNED_IN — only act if getSession didn't already boot
+        sb.auth.getSession().then(function(r) {
+          if (!booted) {
+            booted = true;
+            bootApp(session.user);
+          }
+        });
+      }
+    } else if (event === 'SIGNED_OUT') {
+      booted = false;
+      currentUser = null;
+      savedRecipes = [];
+      updateSavedRecipesUI();
+      resetEditorState();
+      showLoginScreen();
+    }
+  });
+
+  // Override submitAuthForm to set booted=true after successful login
+  var _origSubmit = window.submitAuthForm;
+  document.getElementById('auth-submit-btn').addEventListener('click', function() {
+    booted = false; // allow next SIGNED_IN to boot
   });
 
   // New Task button
