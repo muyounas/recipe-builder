@@ -2554,7 +2554,7 @@ function deleteSavedRecipe(recipeId) {
         sb.from('recipes')
           .delete()
           .eq('user_id', currentUser.id)
-          .filter('data->>'id'', 'eq', recipeId)
+          .filter("data->>'id'", "eq", recipeId)
           .then(function(r) {
             if (r.error) { console.error('Fallback delete error:', r.error.message); }
             else { console.log('Fallback delete succeeded'); }
