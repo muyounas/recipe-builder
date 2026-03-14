@@ -1175,12 +1175,27 @@ function loadAllRecipes() {
           toast('Error loading recipes: ' + result.error.message);
           savedRecipes = [];
         } else {
-          savedRecipes = (result.data || []).map(function(row) {
-            var r = row.data;
-            r._db_id = row.id;
-            return r;
+          savedRecipes = [];
+          (result.data || []).forEach(function(row) {
+            try {
+              // Supabase jsonb can come back as string or object
+              var r = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+              if (r && r.title && Array.isArray(r.tasks)) {
+                r._db_id = row.id;
+                savedRecipes.push(r);
+              }
+            } catch(e) {
+              console.error('Failed to parse recipe row:', row.id, e);
+            }
           });
         }
+        updateSavedRecipesUI();
+        if (savedRecipes.length > 0) toast(savedRecipes.length + ' recipe' + (savedRecipes.length > 1 ? 's' : '') + ' loaded.');
+        resolve();
+      })
+      .catch(function(err) {
+        console.error('loadAllRecipes catch:', err);
+        savedRecipes = [];
         updateSavedRecipesUI();
         resolve();
       });
