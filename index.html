@@ -2631,8 +2631,16 @@ function switchTab(tab) {
 
 // ===================== INIT =====================
 
-// bootApp at script scope — Supabase fires onAuthStateChange before DOMContentLoaded
+// pendingUser holds a user that arrived before DOM was ready
+var pendingUser = null;
+var domReady = false;
+
 function bootApp(user) {
+  // If DOM not ready yet, store user and boot when DOM is ready
+  if (!domReady) {
+    pendingUser = user;
+    return;
+  }
   currentUser = user;
   hideLoginScreen(user);
   loadAllRecipes(user).then(function() {
@@ -2647,7 +2655,7 @@ function bootApp(user) {
   });
 }
 
-// Auth listener at script scope so it works immediately
+// Auth listener at script scope — may fire before DOM exists
 sb.auth.onAuthStateChange(function(event, session) {
   console.log('Auth event:', event, session ? session.user.email : 'no session');
   if (event === 'SIGNED_IN' && session && session.user && !currentUser) {
@@ -2655,23 +2663,34 @@ sb.auth.onAuthStateChange(function(event, session) {
   } else if (event === 'SIGNED_OUT') {
     currentUser = null;
     savedRecipes = [];
-    if (document.getElementById('saved-recipes-container')) updateSavedRecipesUI();
-    if (document.getElementById('login-screen')) showLoginScreen();
+    pendingUser = null;
+    if (domReady) {
+      updateSavedRecipesUI();
+      showLoginScreen();
+    }
   }
 });
 
 document.addEventListener('DOMContentLoaded', function() {
+  domReady = true;
   populateMeasurementDropdown();
   initTaskSortable();
   initSidebarResize();
   showInputPanel('instruction');
 
-  // Check for existing session on page load (handles refresh / returning user)
+  // If a user arrived before DOM was ready, boot now
+  if (pendingUser) {
+    bootApp(pendingUser);
+    pendingUser = null;
+    return;
+  }
+
+  // Check for existing session (handles page refresh / returning user)
   sb.auth.getSession().then(function(response) {
     var session = response.data ? response.data.session : null;
-    if (session && session.user) {
-      if (!currentUser) bootApp(session.user);
-    } else {
+    if (session && session.user && !currentUser) {
+      bootApp(session.user);
+    } else if (!session) {
       showLoginScreen();
       resetEditorState();
     }
