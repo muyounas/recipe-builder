@@ -1145,11 +1145,7 @@ function autoSave() {
   }, 900);
 }
 
-// ===================== STORAGE =====================
-// NOTE: Real implementations are below in CLOUD STORAGE section
-// These stubs are here only to satisfy any early references
-function loadAllRecipes() { return Promise.resolve(); }
-function saveAllRecipes() { updateSavedRecipesUI(); }
+// Storage handled by cloud functions below
 
 function updateRecipeStateFromUI() {
   currentRecipe.title       = document.getElementById('recipe-title').value.trim() || 'Untitled Recipe';
@@ -1187,8 +1183,7 @@ function loadRecipe(recipeId) {
   switchTab('card');
 }
 
-// deleteSavedRecipe: real implementation in CLOUD STORAGE section below
-function deleteSavedRecipe(recipeId) { /* overridden below */ }
+// deleteSavedRecipe handled by cloud function below
 
 function resetEditorState() {
   clearTimeout(autoSaveTimer);
@@ -2448,7 +2443,10 @@ function logOut() {
 function loadAllRecipes() {
   return new Promise(function(resolve) {
     if (!currentUser) { savedRecipes = []; updateSavedRecipesUI(); resolve(); return; }
-    sb.from('recipes').select('*').eq('user_id', currentUser.id).order('updated_at', { ascending: false })
+    sb.from('recipes')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('updated_at', { ascending: false })
       .then(function(result) {
         if (result.error) {
           console.error('Load error:', result.error.message);
@@ -2457,62 +2455,111 @@ function loadAllRecipes() {
           savedRecipes = [];
           (result.data || []).forEach(function(row) {
             try {
-              var r = typeof row.data === 'string' ? JSON.parse(row.data) : JSON.parse(JSON.stringify(row.data));
+              var r = typeof row.data === 'string'
+                ? JSON.parse(row.data)
+                : JSON.parse(JSON.stringify(row.data));
               if (r && r.title && Array.isArray(r.tasks)) {
                 r._db_id = row.id;
                 savedRecipes.push(r);
               }
             } catch(e) { console.error('Row parse error:', e); }
           });
-          console.log('Loaded', savedRecipes.length, 'recipes');
+          console.log('Loaded', savedRecipes.length, 'recipes for user', currentUser.id);
         }
+        updateSavedRecipesUI();
+        resolve();
+      })
+      .catch(function(err) {
+        console.error('loadAllRecipes catch:', err);
+        savedRecipes = [];
         updateSavedRecipesUI();
         resolve();
       });
   });
 }
+
 function saveAllRecipes() { updateSavedRecipesUI(); }
+
 function persistRecipeToCloud(recipe) {
   if (!currentUser) return;
   var clean = JSON.parse(JSON.stringify(recipe));
   delete clean._db_id;
-  var payload = { user_id: currentUser.id, title: recipe.title, data: clean, updated_at: new Date().toISOString() };
+  var now = new Date().toISOString();
+  var payload = { user_id: currentUser.id, title: recipe.title, data: clean, updated_at: now };
+
   if (recipe._db_id) {
-    sb.from('recipes').update(payload).eq('id', recipe._db_id).eq('user_id', currentUser.id).then(function(r) {
-      if (r.error) { console.error('Update failed:', r.error.message); toast('Save failed: ' + r.error.message); }
-      else { console.log('Updated recipe:', recipe.title); }
-    });
+    sb.from('recipes')
+      .update(payload)
+      .eq('id', recipe._db_id)
+      .eq('user_id', currentUser.id)
+      .then(function(r) {
+        if (r.error) { console.error('Update error:', r.error.message); toast('Save failed.'); }
+        else { console.log('Updated:', recipe.title); }
+      });
   } else {
-    payload.created_at = new Date().toISOString();
-    sb.from('recipes').insert(payload).select('id').then(function(r) {
-      if (r.error) { console.error('Insert failed:', r.error.message); toast('Save failed: ' + r.error.message); }
-      else if (r.data && r.data[0]) {
-        var dbId = r.data[0].id;
-        recipe._db_id = dbId;
-        currentRecipe._db_id = dbId;
-        var idx = savedRecipes.findIndex(function(s) { return s.id === recipe.id; });
-        if (idx > -1) savedRecipes[idx]._db_id = dbId;
-        console.log('Inserted recipe:', recipe.title, 'db_id:', dbId);
-      }
-    });
+    payload.created_at = now;
+    sb.from('recipes')
+      .insert(payload)
+      .select('id')
+      .then(function(r) {
+        if (r.error) { console.error('Insert error:', r.error.message); toast('Save failed.'); }
+        else if (r.data && r.data[0]) {
+          var dbId = r.data[0].id;
+          recipe._db_id = dbId;
+          currentRecipe._db_id = dbId;
+          var idx = savedRecipes.findIndex(function(s) { return s.id === recipe.id; });
+          if (idx > -1) savedRecipes[idx]._db_id = dbId;
+          console.log('Inserted:', recipe.title, 'db_id:', dbId);
+        }
+      });
   }
 }
+
 function deleteSavedRecipe(recipeId) {
+  var recipe = savedRecipes.find(function(r) { return r.id === recipeId; });
+  var dbId   = recipe ? recipe._db_id : null;
+  console.log('DELETE - recipeId:', recipeId, 'dbId:', dbId, 'user:', currentUser ? currentUser.id : 'null');
+
   showDialog({
-    title: 'Delete Recipe', message: 'Are you sure? This cannot be undone.',
+    title: 'Delete Recipe',
+    message: 'Are you sure you want to delete "' + (recipe ? recipe.title : 'this recipe') + '"? This cannot be undone.',
     buttons: [
       { label: 'Cancel', cls: 'btn btn-muted btn-sm', value: false },
       { label: 'Delete', cls: 'btn btn-danger btn-sm', value: true }
     ],
     callback: function(confirmed) {
       if (!confirmed) return;
-      var recipe = savedRecipes.find(function(r) { return r.id === recipeId; });
+      // 1. Remove from local list immediately
       savedRecipes = savedRecipes.filter(function(r) { return r.id !== recipeId; });
       updateSavedRecipesUI();
-      if (recipe && recipe._db_id && currentUser) {
-        sb.from('recipes').delete().eq('id', recipe._db_id).eq('user_id', currentUser.id);
-      }
       if (currentRecipe.id === recipeId) resetEditorState();
+
+      // 2. Delete from Supabase - two safety guards: row id AND user_id
+      if (dbId && currentUser) {
+        sb.from('recipes')
+          .delete()
+          .eq('id', dbId)
+          .eq('user_id', currentUser.id)
+          .then(function(r) {
+            if (r.error) {
+              console.error('Delete error:', r.error.message);
+              toast('Delete failed: ' + r.error.message);
+            } else {
+              console.log('Deleted from Supabase - dbId:', dbId);
+            }
+          });
+      } else if (currentUser) {
+        // Fallback: no dbId, use recipe's internal id stored in data column
+        console.warn('No _db_id, trying fallback delete by data->>id');
+        sb.from('recipes')
+          .delete()
+          .eq('user_id', currentUser.id)
+          .filter('data->>'id'', 'eq', recipeId)
+          .then(function(r) {
+            if (r.error) { console.error('Fallback delete error:', r.error.message); }
+            else { console.log('Fallback delete succeeded'); }
+          });
+      }
     }
   });
 }
