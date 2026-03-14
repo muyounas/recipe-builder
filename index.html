@@ -856,15 +856,6 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
     </button>
   </div>
 
-  <!-- FOLDERS SECTION -->
-  <div class="sidebar-section" id="folders-section" style="padding-bottom:4px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-      <div class="sidebar-section-title" style="margin-bottom:0;">Folders</div>
-      <button onclick="createFolder()" style="background:none;border:none;color:rgba(240,201,110,0.55);cursor:pointer;font-size:0.78em;padding:2px 4px;" title="New folder"><i class="fa-solid fa-folder-plus"></i></button>
-    </div>
-    <div class="folders-section" id="folders-container"></div>
-  </div>
-
   <!-- TASKS PANEL (resizable top) -->
   <div class="sidebar-panel" id="tasks-panel">
     <div class="sidebar-section">
@@ -884,9 +875,17 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
   <!-- SAVED RECIPES PANEL (resizable bottom, fills remaining) -->
   <div class="sidebar-panel" id="recipes-panel" style="flex:1;">
     <div class="sidebar-section">
-      <div class="sidebar-section-title">Saved Recipes</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div class="sidebar-section-title" style="margin-bottom:0;">Saved Recipes</div>
+        <button onclick="createFolder()" title="New folder" style="background:none;border:none;color:rgba(240,201,110,0.50);cursor:pointer;font-size:0.82em;padding:2px 5px;transition:color 0.15s;" onmouseover="this.style.color='#f0c96e'" onmouseout="this.style.color='rgba(240,201,110,0.50)'">
+          <i class="fa-solid fa-folder-plus"></i>
+        </button>
+      </div>
     </div>
     <div class="sidebar-panel-inner">
+      <!-- Folders live here, above the unfoldered recipes -->
+      <div id="folders-container"></div>
+      <!-- All saved recipes (unfoldered recipes shown below folders) -->
       <div class="saved-recipes-list" id="saved-recipes-container"></div>
     </div>
   </div>
@@ -1383,13 +1382,22 @@ function updateTaskListUI() {
 }
 
 function updateSavedRecipesUI() {
+  renderFolders();
   var container = document.getElementById('saved-recipes-container');
   container.innerHTML = '';
+
+  // Only show recipes NOT already in any folder
+  var folderedIds = [];
+  folders.forEach(function(f) { folderedIds = folderedIds.concat(f.recipeIds); });
+  var unfoldered = savedRecipes.filter(function(r) { return folderedIds.indexOf(r.id) === -1; });
+
   if (savedRecipes.length === 0) {
     container.innerHTML = '<p style="color:rgba(196,185,138,0.35);font-style:italic;padding:6px 14px;font-size:0.78em;">No recipes saved yet.</p>';
     return;
   }
-  savedRecipes.forEach(function(recipe) {
+  if (unfoldered.length === 0) return; // all in folders
+
+  unfoldered.forEach(function(recipe) {
     var div = document.createElement('div');
     div.className = 'saved-item' + (recipe.id === currentRecipe.id ? ' active-recipe' : '');
     div.setAttribute('data-recipe-id', recipe.id);
@@ -1399,19 +1407,18 @@ function updateSavedRecipesUI() {
       return s + t.items.filter(function(i) { return i.type === 'ingredient'; }).length;
     }, 0);
     div.innerHTML =
-      '<i class="fa-solid fa-grip-vertical" style="color:rgba(240,201,110,0.25);font-size:0.75em;cursor:grab;flex-shrink:0;margin-right:2px;" title="Drag to folder"></i>' +
+      '<i class="fa-solid fa-grip-vertical" style="color:rgba(240,201,110,0.22);font-size:0.72em;cursor:grab;flex-shrink:0;margin-right:2px;" title="Drag to folder"></i>' +
       '<span class="s-title">' + escapeHtml(recipe.title) + '</span>' +
       '<span class="s-meta">' + taskCount + 't &bull; ' + ingCount + 'i</span>' +
+      '<i class="fa-solid fa-folder-arrow-down s-del" title="Add to folder" style="color:#6aaa96;opacity:0.55;" onclick="event.stopPropagation();showAddToFolderMenu(' + recipe.id + ')"></i>' +
       '<i class="fa-solid fa-trash s-del" title="Delete" onclick="event.stopPropagation();deleteSavedRecipe(' + recipe.id + ')"></i>';
     div.addEventListener('dragstart', function(e) {
       e.dataTransfer.setData('recipeId', recipe.id);
       div.classList.add('dragging');
     });
-    div.addEventListener('dragend', function() {
-      div.classList.remove('dragging');
-    });
+    div.addEventListener('dragend', function() { div.classList.remove('dragging'); });
     div.onclick = function(e) {
-      if (e.target.classList.contains('s-del') || e.target.classList.contains('fa-trash')) return;
+      if (e.target.closest('.s-del')) return;
       loadRecipe(parseInt(div.getAttribute('data-recipe-id')));
     };
     container.appendChild(div);
@@ -2442,7 +2449,7 @@ function initSidebarResize() {
   var startTopH  = 0;
 
   // Set initial position to 2/3 down the sidebar
-  var initialH = Math.round(sidebar.offsetHeight * 0.62);
+  var initialH = Math.round(sidebar.offsetHeight * 0.50);
   topPanel.style.flex   = 'none';
   topPanel.style.height = initialH + 'px';
 
@@ -2743,6 +2750,7 @@ function loadFolders() {
   } catch(e) { folders = []; }
   renderFolders();
 }
+
 function createFolder() {
   showDialog({
     title: 'New Folder', input: true, inputPlaceholder: 'Folder name',
@@ -2757,9 +2765,30 @@ function createFolder() {
     }
   });
 }
-function deleteFolder(folderId) {
+
+function renameFolder(folderId) {
+  var folder = folders.find(function(f) { return f.id === folderId; });
+  if (!folder) return;
   showDialog({
-    title: 'Delete Folder', message: 'Delete this folder? Recipes inside will not be deleted.',
+    title: 'Rename Folder', input: true, inputValue: folder.name, inputPlaceholder: 'New name',
+    buttons: [
+      { label: 'Cancel', cls: 'btn btn-muted btn-sm', value: false },
+      { label: 'Rename', cls: 'btn btn-primary btn-sm', value: true }
+    ],
+    callback: function(val) {
+      if (!val || typeof val !== 'string' || !val.trim()) return;
+      folder.name = val.trim();
+      saveFolders(); renderFolders();
+    }
+  });
+}
+
+function deleteFolder(folderId) {
+  var folder = folders.find(function(f) { return f.id === folderId; });
+  if (!folder) return;
+  showDialog({
+    title: 'Delete Folder',
+    message: 'Delete "' + folder.name + '"? Recipes inside will not be deleted.',
     buttons: [
       { label: 'Cancel', cls: 'btn btn-muted btn-sm', value: false },
       { label: 'Delete', cls: 'btn btn-danger btn-sm', value: true }
@@ -2771,34 +2800,35 @@ function deleteFolder(folderId) {
     }
   });
 }
-function shareFolder(folderId) {
+
+function downloadFolderJSON(folderId) {
   var folder = folders.find(function(f) { return f.id === folderId; });
   if (!folder) return;
   var recipesInFolder = savedRecipes.filter(function(r) { return folder.recipeIds.indexOf(r.id) !== -1; });
-  if (recipesInFolder.length === 0) { toast('No recipes in this folder.'); return; }
-  var text = 'FOLDER: ' + folder.name + '\n' + '='.repeat(40) + '\n\n';
-  recipesInFolder.forEach(function(recipe) {
-    text += 'RECIPE: ' + recipe.title + '\n';
-    if (recipe.yield) text += 'Serves: ' + recipe.yield + '\n';
-    recipe.tasks.forEach(function(task) {
-      text += '\n[' + task.name.toUpperCase() + ']\n';
-      task.items.forEach(function(item) {
-        if (item.type === 'ingredient') {
-          text += '- ' + item.ingredient + ': ' + item.quantity + ' ' + ((MEASUREMENT_TYPES[item.unitKey] || {}).name || item.unitKey) + '\n';
-        } else { text += '-> ' + item.text + '\n'; }
-      });
-    });
-    text += '\n' + '-'.repeat(40) + '\n\n';
-  });
-  showDialog({
-    title: 'Share Folder: ' + folder.name,
-    message: 'Copy the text below to share all ' + recipesInFolder.length + ' recipe(s):',
-    input: true, inputValue: text,
-    buttons: [{ label: 'Close', cls: 'btn btn-muted btn-sm', value: false }]
-  });
+  if (recipesInFolder.length === 0) { toast('No recipes in this folder to download.'); return; }
+  var exportObj = {
+    folderName: folder.name,
+    exportedAt: new Date().toISOString(),
+    recipes: recipesInFolder.map(function(r) {
+      var clean = JSON.parse(JSON.stringify(r));
+      delete clean._db_id;
+      return clean;
+    })
+  };
+  var blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href = url;
+  a.download = folder.name.replace(/[^a-z0-9]/gi, '_') + '_recipes.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Downloaded ' + recipesInFolder.length + ' recipe(s).');
 }
+
 function toggleFolder(folderId) {
-  var el = document.getElementById('folder-recipes-' + folderId);
+  var el   = document.getElementById('folder-recipes-' + folderId);
   var icon = document.getElementById('folder-chevron-' + folderId);
   var item = document.getElementById('folder-item-' + folderId);
   if (!el) return;
@@ -2807,6 +2837,7 @@ function toggleFolder(folderId) {
   item.classList.toggle('open', !isOpen);
   if (icon) icon.className = 'fa-solid ' + (isOpen ? 'fa-chevron-right' : 'fa-chevron-down');
 }
+
 function addRecipeToFolder(folderId, recipeId) {
   var folder = folders.find(function(f) { return f.id === folderId; });
   if (!folder) return;
@@ -2816,59 +2847,115 @@ function addRecipeToFolder(folderId, recipeId) {
     toast('Added to folder.');
   }
 }
+
 function removeRecipeFromFolder(folderId, recipeId) {
   var folder = folders.find(function(f) { return f.id === folderId; });
   if (!folder) return;
   folder.recipeIds = folder.recipeIds.filter(function(id) { return id !== recipeId; });
   saveFolders(); renderFolders(); updateSavedRecipesUI();
 }
+
+function showAddToFolderMenu(recipeId) {
+  if (folders.length === 0) {
+    showDialog({
+      title: 'No Folders',
+      message: 'Create a folder first using the folder+ button above.',
+      buttons: [{ label: 'OK', cls: 'btn btn-muted btn-sm', value: false }]
+    });
+    return;
+  }
+  // Build options list
+  var msg = 'Choose a folder to add this recipe to:';
+  showDialog({
+    title: 'Add to Folder', message: msg,
+    buttons: folders.map(function(f) {
+      return { label: f.name, cls: 'btn btn-outline btn-sm', value: f.id };
+    }).concat([{ label: 'Cancel', cls: 'btn btn-muted btn-sm', value: false }]),
+    callback: function(val) {
+      if (!val) return;
+      addRecipeToFolder(val, recipeId);
+    }
+  });
+}
+
 function renderFolders() {
   var container = document.getElementById('folders-container');
   if (!container) return;
-  if (folders.length === 0) {
-    container.innerHTML = '<p style="color:rgba(240,201,110,0.3);font-size:0.74em;padding:2px 4px;font-style:italic;">No folders yet</p>';
-    return;
-  }
   container.innerHTML = '';
+  if (folders.length === 0) return;
+
   folders.forEach(function(folder) {
     var recipesInFolder = savedRecipes.filter(function(r) { return folder.recipeIds.indexOf(r.id) !== -1; });
     var wrapper = document.createElement('div');
+    wrapper.style.marginBottom = '3px';
+
+    // ── Folder row ──
     var folderEl = document.createElement('div');
     folderEl.className = 'folder-item';
     folderEl.id = 'folder-item-' + folder.id;
     folderEl.innerHTML =
-      '<i class="fa-solid fa-chevron-right folder-icon" id="folder-chevron-' + folder.id + '" style="font-size:0.7em;"></i>' +
-      '<i class="fa-solid fa-folder folder-icon"></i>' +
-      '<span class="folder-name" onclick="toggleFolder(' + folder.id + ')">' + escapeHtml(folder.name) + '</span>' +
+      '<i class="fa-solid fa-chevron-right folder-icon" id="folder-chevron-' + folder.id + '" style="font-size:0.68em;flex-shrink:0;transition:transform 0.15s;"></i>' +
+      '<i class="fa-solid fa-folder folder-icon" style="flex-shrink:0;"></i>' +
+      '<span class="folder-name" onclick="toggleFolder(' + folder.id + ')" title="Click to expand">' + escapeHtml(folder.name) + '</span>' +
       '<span class="folder-count">' + recipesInFolder.length + '</span>' +
       '<span class="folder-actions">' +
-        '<span class="folder-share" onclick="event.stopPropagation();shareFolder(' + folder.id + ')" title="Share"><i class="fa-solid fa-share-nodes"></i></span>' +
-        '<span class="folder-del" onclick="event.stopPropagation();deleteFolder(' + folder.id + ')" title="Delete"><i class="fa-solid fa-trash"></i></span>' +
+        '<span class="folder-share" onclick="event.stopPropagation();downloadFolderJSON(' + folder.id + ')" title="Download as JSON"><i class="fa-solid fa-download"></i></span>' +
+        '<span class="folder-share" onclick="event.stopPropagation();renameFolder(' + folder.id + ')" title="Rename"><i class="fa-solid fa-pencil"></i></span>' +
+        '<span class="folder-del" onclick="event.stopPropagation();deleteFolder(' + folder.id + ')" title="Delete folder"><i class="fa-solid fa-trash"></i></span>' +
       '</span>';
-    folderEl.addEventListener('dragover', function(e) { e.preventDefault(); folderEl.style.background = 'rgba(106,170,150,0.22)'; });
-    folderEl.addEventListener('dragleave', function() { folderEl.style.background = ''; });
+
+    // Drop target
+    folderEl.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      folderEl.style.background = 'rgba(106,170,150,0.22)';
+      folderEl.style.borderColor = '#6aaa96';
+    });
+    folderEl.addEventListener('dragleave', function() {
+      folderEl.style.background = '';
+      folderEl.style.borderColor = '';
+    });
     folderEl.addEventListener('drop', function(e) {
-      e.preventDefault(); folderEl.style.background = '';
+      e.preventDefault();
+      folderEl.style.background = '';
+      folderEl.style.borderColor = '';
       var recipeId = parseInt(e.dataTransfer.getData('recipeId'));
       if (recipeId) addRecipeToFolder(folder.id, recipeId);
     });
+
     wrapper.appendChild(folderEl);
+
+    // ── Recipes inside folder ──
     var recipesEl = document.createElement('div');
     recipesEl.className = 'folder-recipes';
     recipesEl.id = 'folder-recipes-' + folder.id;
-    recipesInFolder.forEach(function(recipe) {
-      var ri = document.createElement('div');
-      ri.className = 'saved-item';
-      ri.style.cssText = 'font-size:0.76em;margin:2px 0;';
-      ri.innerHTML =
-        '<span class="s-title" onclick="loadRecipe(' + recipe.id + ')">' + escapeHtml(recipe.title) + '</span>' +
-        '<span class="s-del" onclick="removeRecipeFromFolder(' + folder.id + ',' + recipe.id + ')" title="Remove from folder"><i class="fa-solid fa-xmark"></i></span>';
-      recipesEl.appendChild(ri);
-    });
+
+    if (recipesInFolder.length === 0) {
+      recipesEl.innerHTML = '<p style="color:rgba(240,201,110,0.25);font-size:0.74em;padding:4px 8px;font-style:italic;">Drop recipes here</p>';
+    } else {
+      recipesInFolder.forEach(function(recipe) {
+        var ri = document.createElement('div');
+        ri.className = 'saved-item' + (recipe.id === currentRecipe.id ? ' active-recipe' : '');
+        ri.style.cssText = 'font-size:0.78em;margin:2px 0;padding:6px 8px;';
+        ri.innerHTML =
+          '<span class="s-title" onclick="loadRecipe(' + recipe.id + ')">' + escapeHtml(recipe.title) + '</span>' +
+          '<span class="s-del" onclick="removeRecipeFromFolder(' + folder.id + ',' + recipe.id + ')" title="Remove from folder" style="margin-left:4px;"><i class="fa-solid fa-xmark"></i></span>';
+        recipesEl.appendChild(ri);
+      });
+    }
     wrapper.appendChild(recipesEl);
     container.appendChild(wrapper);
   });
+
+  // Divider between folders and loose recipes
+  if (savedRecipes.some(function(r) {
+    return !folders.some(function(f) { return f.recipeIds.indexOf(r.id) !== -1; });
+  })) {
+    var divEl = document.createElement('div');
+    divEl.style.cssText = 'border-top:1px solid rgba(240,201,110,0.12);margin:6px 0 4px;';
+    container.appendChild(divEl);
+  }
 }
+
 
 // ===================== INIT =====================
 document.addEventListener('DOMContentLoaded', function() {
