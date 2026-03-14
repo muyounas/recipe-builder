@@ -1006,255 +1006,13 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
 <div id="toast"></div>
 
 <script>
-// ===================== CONSTANTS =====================
-var LOCAL_STORAGE_KEY = 'uzi_recipeBuilder_v2';
-
-// ===================== SUPABASE CONFIG =====================
+// ===================== SUPABASE + CONFIG =====================
 var SUPABASE_URL  = 'https://mmutvelumnnodbknjlfx.supabase.co';
 var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tdXR2ZWx1bW5ub2Ria25qbGZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDcxNTgsImV4cCI6MjA4OTA4MzE1OH0.psKpCQsfBdgUS51rnq6WYM5tN6ducDpJr9kkvFkgZlk';
-
-// Initialise Supabase immediately — do NOT wait for DOMContentLoaded
 var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+var LOCAL_STORAGE_KEY = 'uzi_recipeBuilder_v2';
 var currentUser = null;
 var isAuthMode  = 'signin';
-
-function initSupabase() { /* already done above */ }
-
-// ===================== AUTH =====================
-function showLoginMsg(msg, type) {
-  var el = document.getElementById('login-msg');
-  el.textContent = msg;
-  el.className = 'login-msg ' + (type || 'info');
-  el.style.display = 'block';
-}
-function clearLoginMsg() {
-  var el = document.getElementById('login-msg');
-  el.style.display = 'none';
-  el.textContent = '';
-}
-
-function toggleAuthMode() {
-  isAuthMode = isAuthMode === 'signin' ? 'signup' : 'signin';
-  clearLoginMsg();
-  var nameField  = document.getElementById('auth-name-field');
-  var submitBtn  = document.getElementById('auth-submit-btn');
-  var toggleText = document.getElementById('login-toggle-text');
-  if (isAuthMode === 'signup') {
-    nameField.style.display  = 'block';
-    submitBtn.textContent    = 'Create Account';
-    toggleText.innerHTML     = 'Already have an account? <a onclick="toggleAuthMode()">Sign in</a>';
-    document.getElementById('auth-password').autocomplete = 'new-password';
-  } else {
-    nameField.style.display  = 'none';
-    submitBtn.textContent    = 'Sign In';
-    toggleText.innerHTML     = "Don't have an account? <a onclick=\"toggleAuthMode()\">Create one</a>";
-    document.getElementById('auth-password').autocomplete = 'current-password';
-  }
-}
-
-function submitAuthForm() {
-  clearLoginMsg();
-  var email    = document.getElementById('auth-email').value.trim();
-  var password = document.getElementById('auth-password').value;
-  var name     = document.getElementById('auth-name').value.trim();
-  if (!email || !password) { showLoginMsg('Please enter your email and password.', 'error'); return; }
-  if (isAuthMode === 'signup' && password.length < 6) { showLoginMsg('Password must be at least 6 characters.', 'error'); return; }
-
-  var btn = document.getElementById('auth-submit-btn');
-  btn.disabled = true;
-  btn.textContent = isAuthMode === 'signup' ? 'Creating account…' : 'Signing in…';
-
-  if (isAuthMode === 'signup') {
-    sb.auth.signUp({
-      email: email,
-      password: password,
-      options: { data: { full_name: name || email.split('@')[0] } }
-    }).then(function(result) {
-      btn.disabled = false;
-      btn.textContent = 'Create Account';
-      if (result.error) { showLoginMsg(result.error.message, 'error'); return; }
-      if (result.data && result.data.user && !result.data.session) {
-        showLoginMsg('Check your email to confirm your account, then sign in.', 'success');
-        toggleAuthMode();
-      } else if (result.data && result.data.session) {
-        // Auto-confirmed — boot directly
-        var u = result.data.session.user;
-        currentUser = u;
-        hideLoginScreen(u);
-        loadAllRecipes(u).then(function() {
-          if (savedRecipes.length > 0) loadRecipe(savedRecipes[0].id);
-          else resetEditorState();
-        });
-      }
-    });
-  } else {
-    sb.auth.signInWithPassword({ email: email, password: password })
-      .then(function(result) {
-        btn.disabled = false;
-        btn.textContent = 'Sign In';
-        if (result.error) { showLoginMsg(result.error.message, 'error'); return; }
-        if (result.data && result.data.session && result.data.session.user) {
-          // Directly boot — don't rely on listener
-          var u = result.data.session.user;
-          currentUser = u;
-          hideLoginScreen(u);
-          loadAllRecipes(u).then(function() {
-            if (savedRecipes.length > 0) loadRecipe(savedRecipes[0].id);
-            else resetEditorState();
-          });
-        }
-      });
-  }
-}
-
-function logOut() {
-  clearTimeout(autoSaveTimer);
-  sb.auth.signOut().then(function() {
-    currentUser = null;
-    savedRecipes = [];
-    currentRecipe = { id: Date.now(), title: 'Untitled Recipe', tasks: [], yield: null, servingSize: null };
-    currentTaskId = null;
-    taskIdCounter = 1;
-    itemIdCounter = 1;
-    updateTaskListUI();
-    updateSavedRecipesUI();
-    document.getElementById('sidebar-user-row').style.display = 'none';
-    showLoginScreen();
-  });
-}
-
-function showLoginScreen() {
-  document.getElementById('login-screen').classList.remove('hidden');
-}
-
-function hideLoginScreen(user) {
-  currentUser = user;
-  document.getElementById('login-screen').classList.add('hidden');
-  // Populate sidebar user info
-  var meta  = (user.user_metadata || {});
-  var name  = meta.full_name || meta.name || user.email.split('@')[0];
-  var email = user.email;
-  var avatar = meta.avatar_url || meta.picture || '';
-  document.getElementById('sidebar-user-name').textContent  = name;
-  document.getElementById('sidebar-user-email').textContent = email;
-  var avatarEl = document.getElementById('sidebar-avatar');
-  if (avatar) {
-    avatarEl.innerHTML = '<img src="' + avatar + '" alt="">';
-  } else {
-    avatarEl.textContent = name.charAt(0).toUpperCase();
-  }
-  document.getElementById('sidebar-user-row').style.display = 'flex';
-}
-
-// ===================== API HELPER =====================
-var ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-
-function anthropicFetch(body) {
-  var isLocal = window.location.protocol === 'file:' ||
-                window.location.hostname === 'localhost' ||
-                window.location.hostname === '127.0.0.1';
-  var url = isLocal
-    ? 'https://corsproxy.io/?' + encodeURIComponent(ANTHROPIC_API_URL)
-    : ANTHROPIC_API_URL;
-  return fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-}
-
-// ===================== CLOUD STORAGE =====================
-function loadAllRecipes(user) {
-  var uid = (user || currentUser) ? (user || currentUser).id : null;
-  return new Promise(function(resolve) {
-    if (!uid) { savedRecipes = []; updateSavedRecipesUI(); resolve(); return; }
-    console.log('Loading recipes for user:', uid);
-    sb.from('recipes')
-      .select('*')
-      .eq('user_id', uid)
-      .order('updated_at', { ascending: false })
-      .then(function(result) {
-        console.log('Supabase load result - rows:', result.data ? result.data.length : 0, 'error:', result.error);
-        if (result.error) {
-          console.error('Load error:', result.error);
-          toast('Error loading: ' + result.error.message);
-          savedRecipes = [];
-        } else {
-          savedRecipes = [];
-          (result.data || []).forEach(function(row) {
-            try {
-              var r = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
-              if (r && r.title && Array.isArray(r.tasks)) {
-                r._db_id = row.id;
-                savedRecipes.push(r);
-                console.log('Loaded recipe:', r.title);
-              }
-            } catch(e) {
-              console.error('Parse error row:', row.id, e);
-            }
-          });
-          if (savedRecipes.length > 0) toast(savedRecipes.length + ' recipe(s) loaded.');
-        }
-        updateSavedRecipesUI();
-        resolve();
-      })
-      .catch(function(err) {
-        console.error('loadAllRecipes catch:', err);
-        savedRecipes = [];
-        updateSavedRecipesUI();
-        resolve();
-      });
-  });
-}
-
-function saveAllRecipes() {
-  updateSavedRecipesUI();
-}
-
-function persistRecipeToCloud(recipe) {
-  if (!currentUser) { toast('Not logged in — recipe not saved to cloud.'); return; }
-  var payload = {
-    user_id:    currentUser.id,
-    title:      recipe.title,
-    data:       JSON.parse(JSON.stringify(recipe)),
-    updated_at: new Date().toISOString()
-  };
-
-  if (recipe._db_id) {
-    // Update existing row
-    sb.from('recipes')
-      .update(payload)
-      .eq('id', recipe._db_id)
-      .eq('user_id', currentUser.id)
-      .then(function(result) {
-        if (result.error) {
-          console.error('Update error:', result.error);
-          toast('Cloud save failed: ' + result.error.message);
-        }
-      });
-  } else {
-    // Insert new row and get back the id
-    payload.created_at = new Date().toISOString();
-    sb.from('recipes')
-      .insert(payload)
-      .select('id')
-      .then(function(result) {
-        if (result.error) {
-          console.error('Insert error:', result.error);
-          toast('Cloud save failed: ' + result.error.message);
-          return;
-        }
-        if (result.data && result.data[0]) {
-          var newDbId = result.data[0].id;
-          // Attach DB id to both currentRecipe and the copy in savedRecipes
-          recipe._db_id = newDbId;
-          if (currentRecipe.id === recipe.id) currentRecipe._db_id = newDbId;
-          var idx = savedRecipes.findIndex(function(r) { return r.id === recipe.id; });
-          if (idx > -1) savedRecipes[idx]._db_id = newDbId;
-        }
-      });
-  }
-}
 
 var MEASUREMENT_TYPES = {
   'Tbs':    { name: 'Tablespoon', color: '#1A6B3D' },
@@ -2629,85 +2387,208 @@ function switchTab(tab) {
   document.getElementById('tab-btn-' + tab).classList.add('active');
 }
 
-// ===================== INIT =====================
 
-// pendingUser holds a user that arrived before DOM was ready
-var pendingUser = null;
-var domReady = false;
 
-function bootApp(user) {
-  // If DOM not ready yet, store user and boot when DOM is ready
-  if (!domReady) {
-    pendingUser = user;
-    return;
+// ===================== AUTH HELPERS =====================
+function showLoginMsg(msg, type) {
+  var el = document.getElementById('login-msg');
+  el.textContent = msg;
+  el.className = 'login-msg ' + (type || 'info');
+  el.style.display = 'block';
+}
+function clearLoginMsg() {
+  var el = document.getElementById('login-msg');
+  el.style.display = 'none';
+  el.textContent = '';
+}
+function toggleAuthMode() {
+  isAuthMode = isAuthMode === 'signin' ? 'signup' : 'signin';
+  clearLoginMsg();
+  var nameField  = document.getElementById('auth-name-field');
+  var submitBtn  = document.getElementById('auth-submit-btn');
+  var toggleText = document.getElementById('login-toggle-text');
+  if (isAuthMode === 'signup') {
+    nameField.style.display  = 'block';
+    submitBtn.textContent    = 'Create Account';
+    toggleText.innerHTML     = 'Already have an account? <a onclick="toggleAuthMode()">Sign in</a>';
+  } else {
+    nameField.style.display  = 'none';
+    submitBtn.textContent    = 'Sign In';
+    toggleText.innerHTML     = "Don't have an account? <a onclick=\"toggleAuthMode()\">Create one</a>";
   }
+}
+function showLoginScreen() {
+  document.getElementById('login-screen').classList.remove('hidden');
+}
+function hideLoginScreen(user) {
   currentUser = user;
-  hideLoginScreen(user);
-  loadAllRecipes(user).then(function() {
-    if (savedRecipes.length > 0) {
-      loadRecipe(savedRecipes[0].id);
-    } else {
-      resetEditorState();
-    }
-  }).catch(function(e) {
-    console.error('bootApp error:', e);
-    resetEditorState();
+  document.getElementById('login-screen').classList.add('hidden');
+  var meta   = user.user_metadata || {};
+  var name   = meta.full_name || meta.name || user.email.split('@')[0];
+  var avatar = meta.avatar_url || meta.picture || '';
+  document.getElementById('sidebar-user-name').textContent  = name;
+  document.getElementById('sidebar-user-email').textContent = user.email;
+  var avatarEl = document.getElementById('sidebar-avatar');
+  if (avatar) { avatarEl.innerHTML = '<img src="' + avatar + '" alt="">'; }
+  else { avatarEl.textContent = name.charAt(0).toUpperCase(); }
+  document.getElementById('sidebar-user-row').style.display = 'flex';
+}
+function submitAuthForm() {
+  clearLoginMsg();
+  var email    = document.getElementById('auth-email').value.trim();
+  var password = document.getElementById('auth-password').value;
+  var name     = document.getElementById('auth-name').value.trim();
+  if (!email || !password) { showLoginMsg('Please enter email and password.', 'error'); return; }
+  if (isAuthMode === 'signup' && password.length < 6) { showLoginMsg('Password must be at least 6 characters.', 'error'); return; }
+  var btn = document.getElementById('auth-submit-btn');
+  btn.disabled = true;
+  btn.textContent = isAuthMode === 'signup' ? 'Creating account...' : 'Signing in...';
+  if (isAuthMode === 'signup') {
+    sb.auth.signUp({ email: email, password: password, options: { data: { full_name: name || email.split('@')[0] } } }).then(function(r) {
+      btn.disabled = false; btn.textContent = 'Create Account';
+      if (r.error) { showLoginMsg(r.error.message, 'error'); return; }
+      if (r.data.session) { onUserReady(r.data.session.user); }
+      else { showLoginMsg('Check your email to confirm, then sign in.', 'success'); toggleAuthMode(); }
+    });
+  } else {
+    sb.auth.signInWithPassword({ email: email, password: password }).then(function(r) {
+      btn.disabled = false; btn.textContent = 'Sign In';
+      if (r.error) { showLoginMsg(r.error.message, 'error'); return; }
+      if (r.data.session) { onUserReady(r.data.session.user); }
+    });
+  }
+}
+function logOut() {
+  clearTimeout(autoSaveTimer);
+  sb.auth.signOut().then(function() {
+    currentUser = null;
+    savedRecipes = [];
+    currentRecipe = { id: Date.now(), title: 'Untitled Recipe', tasks: [], yield: null, servingSize: null };
+    currentTaskId = null; taskIdCounter = 1; itemIdCounter = 1;
+    updateTaskListUI(); updateSavedRecipesUI();
+    document.getElementById('sidebar-user-row').style.display = 'none';
+    showLoginScreen();
   });
 }
 
-// Auth listener at script scope — may fire before DOM exists
-sb.auth.onAuthStateChange(function(event, session) {
-  console.log('Auth event:', event, session ? session.user.email : 'no session');
-  if (event === 'SIGNED_IN' && session && session.user && !currentUser) {
-    bootApp(session.user);
-  } else if (event === 'SIGNED_OUT') {
-    currentUser = null;
-    savedRecipes = [];
-    pendingUser = null;
-    if (domReady) {
-      updateSavedRecipesUI();
-      showLoginScreen();
-    }
+// ===================== CLOUD STORAGE =====================
+function loadAllRecipes() {
+  return new Promise(function(resolve) {
+    if (!currentUser) { savedRecipes = []; updateSavedRecipesUI(); resolve(); return; }
+    sb.from('recipes').select('*').eq('user_id', currentUser.id).order('updated_at', { ascending: false })
+      .then(function(result) {
+        if (result.error) {
+          console.error('Load error:', result.error.message);
+          savedRecipes = [];
+        } else {
+          savedRecipes = [];
+          (result.data || []).forEach(function(row) {
+            try {
+              var r = typeof row.data === 'string' ? JSON.parse(row.data) : JSON.parse(JSON.stringify(row.data));
+              if (r && r.title && Array.isArray(r.tasks)) {
+                r._db_id = row.id;
+                savedRecipes.push(r);
+              }
+            } catch(e) { console.error('Row parse error:', e); }
+          });
+          console.log('Loaded', savedRecipes.length, 'recipes');
+        }
+        updateSavedRecipesUI();
+        resolve();
+      });
+  });
+}
+function saveAllRecipes() { updateSavedRecipesUI(); }
+function persistRecipeToCloud(recipe) {
+  if (!currentUser) return;
+  var clean = JSON.parse(JSON.stringify(recipe));
+  delete clean._db_id;
+  var payload = { user_id: currentUser.id, title: recipe.title, data: clean, updated_at: new Date().toISOString() };
+  if (recipe._db_id) {
+    sb.from('recipes').update(payload).eq('id', recipe._db_id).eq('user_id', currentUser.id).then(function(r) {
+      if (r.error) { console.error('Update failed:', r.error.message); toast('Save failed: ' + r.error.message); }
+      else { console.log('Updated recipe:', recipe.title); }
+    });
+  } else {
+    payload.created_at = new Date().toISOString();
+    sb.from('recipes').insert(payload).select('id').then(function(r) {
+      if (r.error) { console.error('Insert failed:', r.error.message); toast('Save failed: ' + r.error.message); }
+      else if (r.data && r.data[0]) {
+        var dbId = r.data[0].id;
+        recipe._db_id = dbId;
+        currentRecipe._db_id = dbId;
+        var idx = savedRecipes.findIndex(function(s) { return s.id === recipe.id; });
+        if (idx > -1) savedRecipes[idx]._db_id = dbId;
+        console.log('Inserted recipe:', recipe.title, 'db_id:', dbId);
+      }
+    });
   }
-});
+}
+function deleteSavedRecipe(recipeId) {
+  showDialog({
+    title: 'Delete Recipe', message: 'Are you sure? This cannot be undone.',
+    buttons: [
+      { label: 'Cancel', cls: 'btn btn-muted btn-sm', value: false },
+      { label: 'Delete', cls: 'btn btn-danger btn-sm', value: true }
+    ],
+    callback: function(confirmed) {
+      if (!confirmed) return;
+      var recipe = savedRecipes.find(function(r) { return r.id === recipeId; });
+      savedRecipes = savedRecipes.filter(function(r) { return r.id !== recipeId; });
+      updateSavedRecipesUI();
+      if (recipe && recipe._db_id && currentUser) {
+        sb.from('recipes').delete().eq('id', recipe._db_id).eq('user_id', currentUser.id);
+      }
+      if (currentRecipe.id === recipeId) resetEditorState();
+    }
+  });
+}
 
+// ===================== ONE-TIME BOOT AFTER LOGIN =====================
+function onUserReady(user) {
+  hideLoginScreen(user);
+  loadAllRecipes().then(function() {
+    if (savedRecipes.length > 0) loadRecipe(savedRecipes[0].id);
+    else resetEditorState();
+  });
+}
+
+// ===================== INIT =====================
 document.addEventListener('DOMContentLoaded', function() {
-  domReady = true;
   populateMeasurementDropdown();
   initTaskSortable();
   initSidebarResize();
   showInputPanel('instruction');
 
-  // If a user arrived before DOM was ready, boot now
-  if (pendingUser) {
-    bootApp(pendingUser);
-    pendingUser = null;
-    return;
-  }
-
-  // Check for existing session (handles page refresh / returning user)
-  sb.auth.getSession().then(function(response) {
-    var session = response.data ? response.data.session : null;
-    if (session && session.user && !currentUser) {
-      bootApp(session.user);
-    } else if (!session) {
+  // THE ONLY auth entry point on page load — simple and reliable
+  sb.auth.getSession().then(function(resp) {
+    var session = resp.data && resp.data.session;
+    if (session && session.user) {
+      onUserReady(session.user);
+    } else {
       showLoginScreen();
       resetEditorState();
     }
   });
 
-  document.getElementById('new-task-btn').addEventListener('click', function() {
-    promptNewTask();
+  // Only handle sign-out from listener (sign-in handled directly in submitAuthForm)
+  sb.auth.onAuthStateChange(function(event, session) {
+    console.log('Auth:', event);
+    if (event === 'SIGNED_OUT') {
+      currentUser = null; savedRecipes = [];
+      updateSavedRecipesUI(); showLoginScreen();
+    }
   });
 
+  document.getElementById('new-task-btn').addEventListener('click', promptNewTask);
   document.getElementById('grocery-modal').addEventListener('click', function(e) {
-    if (e.target === document.getElementById('grocery-modal')) closeGroceryModal();
+    if (e.target === this) closeGroceryModal();
   });
   document.getElementById('ai-import-modal').addEventListener('click', function(e) {
-    if (e.target === document.getElementById('ai-import-modal')) closeAiImportModal();
+    if (e.target === this) closeAiImportModal();
   });
   document.getElementById('custom-dialog').addEventListener('click', function(e) {
-    if (e.target === document.getElementById('custom-dialog')) closeDialog();
+    if (e.target === this) closeDialog();
   });
 });
 </script>
