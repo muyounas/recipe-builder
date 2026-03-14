@@ -1077,9 +1077,11 @@ function submitAuthForm() {
         showLoginMsg('Check your email to confirm your account, then sign in.', 'success');
         toggleAuthMode();
       } else if (result.data && result.data.session) {
-        // Auto-confirmed (email confirm disabled) — boot directly
-        hideLoginScreen(result.data.session.user);
-        loadAllRecipes().then(function() {
+        // Auto-confirmed — boot directly
+        var u = result.data.session.user;
+        currentUser = u;
+        hideLoginScreen(u);
+        loadAllRecipes(u).then(function() {
           if (savedRecipes.length > 0) loadRecipe(savedRecipes[0].id);
           else resetEditorState();
         });
@@ -1093,8 +1095,10 @@ function submitAuthForm() {
         if (result.error) { showLoginMsg(result.error.message, 'error'); return; }
         if (result.data && result.data.session && result.data.session.user) {
           // Directly boot — don't rely on listener
-          hideLoginScreen(result.data.session.user);
-          loadAllRecipes().then(function() {
+          var u = result.data.session.user;
+          currentUser = u;
+          hideLoginScreen(u);
+          loadAllRecipes(u).then(function() {
             if (savedRecipes.length > 0) loadRecipe(savedRecipes[0].id);
             else resetEditorState();
           });
@@ -1160,46 +1164,42 @@ function anthropicFetch(body) {
 }
 
 // ===================== CLOUD STORAGE =====================
-function loadAllRecipes() {
+function loadAllRecipes(user) {
+  var uid = (user || currentUser) ? (user || currentUser).id : null;
   return new Promise(function(resolve) {
-    if (!currentUser) { savedRecipes = []; updateSavedRecipesUI(); resolve(); return; }
-    console.log('Loading recipes for user:', currentUser.id);
+    if (!uid) { savedRecipes = []; updateSavedRecipesUI(); resolve(); return; }
+    console.log('Loading recipes for user:', uid);
     sb.from('recipes')
       .select('*')
-      .eq('user_id', currentUser.id)
+      .eq('user_id', uid)
       .order('updated_at', { ascending: false })
       .then(function(result) {
-        console.log('Supabase load result:', JSON.stringify(result));
+        console.log('Supabase load result - rows:', result.data ? result.data.length : 0, 'error:', result.error);
         if (result.error) {
           console.error('Load error:', result.error);
           toast('Error loading: ' + result.error.message);
           savedRecipes = [];
         } else {
-          console.log('Rows returned:', result.data ? result.data.length : 0);
           savedRecipes = [];
           (result.data || []).forEach(function(row) {
             try {
-              console.log('Row:', row.id, 'data type:', typeof row.data, 'data:', JSON.stringify(row.data).substring(0, 100));
               var r = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
               if (r && r.title && Array.isArray(r.tasks)) {
                 r._db_id = row.id;
                 savedRecipes.push(r);
                 console.log('Loaded recipe:', r.title);
-              } else {
-                console.warn('Invalid recipe structure:', JSON.stringify(r).substring(0, 100));
               }
             } catch(e) {
-              console.error('Parse error for row:', row.id, e);
+              console.error('Parse error row:', row.id, e);
             }
           });
-          toast(savedRecipes.length + ' recipe(s) loaded from cloud.');
+          if (savedRecipes.length > 0) toast(savedRecipes.length + ' recipe(s) loaded.');
         }
         updateSavedRecipesUI();
         resolve();
       })
       .catch(function(err) {
         console.error('loadAllRecipes catch:', err);
-        toast('Load failed: ' + err.message);
         savedRecipes = [];
         updateSavedRecipesUI();
         resolve();
@@ -2638,15 +2638,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Single function that boots the app for a logged-in user
   function bootApp(user) {
+    currentUser = user;  // set BEFORE loadAllRecipes so all functions have it
     hideLoginScreen(user);
-    loadAllRecipes().then(function() {
+    loadAllRecipes(user).then(function() {
       if (savedRecipes.length > 0) {
         loadRecipe(savedRecipes[0].id);
       } else {
         resetEditorState();
       }
     }).catch(function(e) {
-      console.error('bootApp loadAllRecipes error:', e);
+      console.error('bootApp error:', e);
       resetEditorState();
     });
   }
