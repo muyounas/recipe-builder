@@ -1187,27 +1187,8 @@ function loadRecipe(recipeId) {
   switchTab('card');
 }
 
-function deleteSavedRecipe(recipeId) {
-  showDialog({
-    title: 'Delete Recipe',
-    message: 'Are you sure you want to delete this saved recipe? This cannot be undone.',
-    buttons: [
-      { label: 'Cancel', cls: 'btn btn-muted btn-sm', value: false },
-      { label: 'Delete', cls: 'btn btn-danger btn-sm', value: true }
-    ],
-    callback: function(confirmed) {
-      if (!confirmed) return;
-      var recipe = savedRecipes.find(function(r) { return r.id === recipeId; });
-      savedRecipes = savedRecipes.filter(function(r) { return r.id !== recipeId; });
-      updateSavedRecipesUI();
-      // Delete from cloud
-      if (recipe && recipe._db_id && currentUser) {
-        sb.from('recipes').delete().eq('id', recipe._db_id).eq('user_id', currentUser.id);
-      }
-      if (currentRecipe.id === recipeId) resetEditorState();
-    }
-  });
-}
+// deleteSavedRecipe: real implementation in CLOUD STORAGE section below
+function deleteSavedRecipe(recipeId) { /* overridden below */ }
 
 function resetEditorState() {
   clearTimeout(autoSaveTimer);
