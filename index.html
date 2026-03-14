@@ -1011,8 +1011,8 @@ var LOCAL_STORAGE_KEY = 'uzi_recipeBuilder_v2';
 
 // ===================== SUPABASE CONFIG =====================
 // Replace these two values with your own from supabase.com → Settings → API
-var SUPABASE_URL  = 'https://mmutvelumnnodbknjlfx.supabase.co';   // e.g. https://xyzxyz.supabase.co
-var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tdXR2ZWx1bW5ub2Ria25qbGZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MDcxNTgsImV4cCI6MjA4OTA4MzE1OH0.psKpCQsfBdgUS51rnq6WYM5tN6ducDpJr9kkvFkgZlk';
+var SUPABASE_URL  = 'https://mmutvelumnnodbknjlfx.supabase.co';
+var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tdXR2ZWx1bW5ub2Ria25qbGZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgzODI3MDIsImV4cCI6MjA2Mzk1ODcwMn0.Mm5CkMlVdJOYPGqGQfgFjBhSy3Y0VVIcJFMEJi0aQDU';
 
 var sb = null;   // Supabase client, initialised in initSupabase()
 var currentUser = null;
@@ -1133,51 +1133,77 @@ function anthropicFetch(body) {
 
 // ===================== CLOUD STORAGE =====================
 function loadAllRecipes() {
-  if (!currentUser) { savedRecipes = []; updateSavedRecipesUI(); return; }
-  sb.from('recipes')
-    .select('*')
-    .eq('user_id', currentUser.id)
-    .order('updated_at', { ascending: false })
-    .then(function(result) {
-      if (result.error) { console.error('Load error:', result.error); savedRecipes = []; }
-      else {
-        savedRecipes = (result.data || []).map(function(row) {
-          var r = row.data;
-          r._db_id = row.id;  // keep DB row id for upserts
-          return r;
-        });
-      }
-      updateSavedRecipesUI();
-    });
+  return new Promise(function(resolve) {
+    if (!currentUser) { savedRecipes = []; updateSavedRecipesUI(); resolve(); return; }
+    sb.from('recipes')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('updated_at', { ascending: false })
+      .then(function(result) {
+        if (result.error) {
+          console.error('Load error:', result.error);
+          toast('Error loading recipes: ' + result.error.message);
+          savedRecipes = [];
+        } else {
+          savedRecipes = (result.data || []).map(function(row) {
+            var r = row.data;
+            r._db_id = row.id;
+            return r;
+          });
+        }
+        updateSavedRecipesUI();
+        resolve();
+      });
+  });
 }
 
 function saveAllRecipes() {
-  updateSavedRecipesUI();  // update UI immediately; cloud sync handled per-recipe
+  updateSavedRecipesUI();
 }
 
 function persistRecipeToCloud(recipe) {
-  if (!currentUser) return;
+  if (!currentUser) { toast('Not logged in — recipe not saved to cloud.'); return; }
   var payload = {
     user_id:    currentUser.id,
     title:      recipe.title,
-    data:       recipe,
+    data:       JSON.parse(JSON.stringify(recipe)),
     updated_at: new Date().toISOString()
   };
-  // If recipe has a DB row id, update that row; otherwise insert
-  var promise = recipe._db_id
-    ? sb.from('recipes').update(payload).eq('id', recipe._db_id).eq('user_id', currentUser.id)
-    : sb.from('recipes').insert(Object.assign({ created_at: new Date().toISOString() }, payload)).select();
 
-  promise.then(function(result) {
-    if (result.error) { console.error('Save error:', result.error); toast('Cloud save failed.'); return; }
-    // Attach DB id to recipe object so future saves update the same row
-    if (!recipe._db_id && result.data && result.data[0]) {
-      recipe._db_id = result.data[0].id;
-      // Update the copy in savedRecipes too
-      var idx = savedRecipes.findIndex(function(r) { return r.id === recipe.id; });
-      if (idx > -1) savedRecipes[idx]._db_id = recipe._db_id;
-    }
-  });
+  if (recipe._db_id) {
+    // Update existing row
+    sb.from('recipes')
+      .update(payload)
+      .eq('id', recipe._db_id)
+      .eq('user_id', currentUser.id)
+      .then(function(result) {
+        if (result.error) {
+          console.error('Update error:', result.error);
+          toast('Cloud save failed: ' + result.error.message);
+        }
+      });
+  } else {
+    // Insert new row and get back the id
+    payload.created_at = new Date().toISOString();
+    sb.from('recipes')
+      .insert(payload)
+      .select('id')
+      .then(function(result) {
+        if (result.error) {
+          console.error('Insert error:', result.error);
+          toast('Cloud save failed: ' + result.error.message);
+          return;
+        }
+        if (result.data && result.data[0]) {
+          var newDbId = result.data[0].id;
+          // Attach DB id to both currentRecipe and the copy in savedRecipes
+          recipe._db_id = newDbId;
+          if (currentRecipe.id === recipe.id) currentRecipe._db_id = newDbId;
+          var idx = savedRecipes.findIndex(function(r) { return r.id === recipe.id; });
+          if (idx > -1) savedRecipes[idx]._db_id = newDbId;
+        }
+      });
+  }
 }
 
 var MEASUREMENT_TYPES = {
@@ -2561,27 +2587,33 @@ document.addEventListener('DOMContentLoaded', function() {
   initSidebarResize();
   showInputPanel('instruction');
 
-  // Listen for auth state changes (login, logout, OAuth redirect)
+  // Listen for auth state changes (login, logout)
   sb.auth.onAuthStateChange(function(event, session) {
-    if (session && session.user) {
+    if (event === 'SIGNED_IN' && session && session.user) {
       hideLoginScreen(session.user);
-      // Load this user's recipes from the cloud
-      loadAllRecipes();
-      setTimeout(function() {
+      loadAllRecipes().then(function() {
         if (savedRecipes.length > 0) loadRecipe(savedRecipes[0].id);
         else resetEditorState();
-      }, 600);
-    } else {
+      });
+    } else if (event === 'SIGNED_OUT') {
+      currentUser = null;
+      savedRecipes = [];
+      updateSavedRecipesUI();
       showLoginScreen();
     }
   });
 
-  // Check for an existing session on page load
+  // Check for an existing session on page load (returning user)
   sb.auth.getSession().then(function(result) {
-    if (result.data && result.data.session) {
-      // onAuthStateChange will fire — nothing to do here
+    if (result.data && result.data.session && result.data.session.user) {
+      hideLoginScreen(result.data.session.user);
+      loadAllRecipes().then(function() {
+        if (savedRecipes.length > 0) loadRecipe(savedRecipes[0].id);
+        else resetEditorState();
+      });
     } else {
       showLoginScreen();
+      resetEditorState();
     }
   });
 
