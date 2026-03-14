@@ -1165,36 +1165,43 @@ function anthropicFetch(body) {
 function loadAllRecipes() {
   return new Promise(function(resolve) {
     if (!currentUser) { savedRecipes = []; updateSavedRecipesUI(); resolve(); return; }
+    console.log('Loading recipes for user:', currentUser.id);
     sb.from('recipes')
       .select('*')
       .eq('user_id', currentUser.id)
       .order('updated_at', { ascending: false })
       .then(function(result) {
+        console.log('Supabase load result:', JSON.stringify(result));
         if (result.error) {
           console.error('Load error:', result.error);
-          toast('Error loading recipes: ' + result.error.message);
+          toast('Error loading: ' + result.error.message);
           savedRecipes = [];
         } else {
+          console.log('Rows returned:', result.data ? result.data.length : 0);
           savedRecipes = [];
           (result.data || []).forEach(function(row) {
             try {
-              // Supabase jsonb can come back as string or object
+              console.log('Row:', row.id, 'data type:', typeof row.data, 'data:', JSON.stringify(row.data).substring(0, 100));
               var r = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
               if (r && r.title && Array.isArray(r.tasks)) {
                 r._db_id = row.id;
                 savedRecipes.push(r);
+                console.log('Loaded recipe:', r.title);
+              } else {
+                console.warn('Invalid recipe structure:', JSON.stringify(r).substring(0, 100));
               }
             } catch(e) {
-              console.error('Failed to parse recipe row:', row.id, e);
+              console.error('Parse error for row:', row.id, e);
             }
           });
+          toast(savedRecipes.length + ' recipe(s) loaded from cloud.');
         }
         updateSavedRecipesUI();
-        if (savedRecipes.length > 0) toast(savedRecipes.length + ' recipe' + (savedRecipes.length > 1 ? 's' : '') + ' loaded.');
         resolve();
       })
       .catch(function(err) {
         console.error('loadAllRecipes catch:', err);
+        toast('Load failed: ' + err.message);
         savedRecipes = [];
         updateSavedRecipesUI();
         resolve();
