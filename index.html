@@ -714,6 +714,60 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
 .sidebar-logout-btn:hover { color: #f0c96e; }
 
 /* ===================== PRINT ===================== */
+
+/* ===================== EDITABLE GROCERY LIST ===================== */
+.grocery-list-header { margin-bottom: 12px; }
+.grocery-list-header h3 { font-family: 'Playfair Display', serif; font-size: 1.08em; color: var(--ink); }
+.editable-grocery-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.editable-grocery-item {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--cream); border: 1px solid var(--border);
+  border-radius: 7px; padding: 7px 10px; font-size: 0.84em;
+  transition: opacity 0.2s;
+}
+.editable-grocery-item.checked-off { opacity: 0.4; text-decoration: line-through; }
+.grocery-item-check { width: 15px; height: 15px; accent-color: var(--p-teal); flex-shrink: 0; cursor: pointer; }
+.grocery-item-name { flex: 1; font-weight: 700; color: var(--ink); min-width: 0; outline: none; border-radius: 4px; padding: 1px 4px; }
+.grocery-item-name:focus { background: #fff; box-shadow: 0 0 0 2px var(--p-teal); }
+.grocery-item-qty { color: var(--ink-light); width: 90px; flex-shrink: 0; outline: none; border-radius: 4px; padding: 1px 4px; text-align: right; }
+.grocery-item-qty:focus { background: #fff; box-shadow: 0 0 0 2px var(--p-teal); }
+.grocery-del-btn {
+  background: none; border: none; color: var(--red-light); cursor: pointer;
+  opacity: 0.45; font-size: 0.85em; padding: 2px 4px; flex-shrink: 0; transition: opacity 0.15s;
+}
+.grocery-del-btn:hover { opacity: 1; }
+.grocery-add-row { display: flex; gap: 7px; align-items: center; margin-top: 8px; padding-top: 10px; border-top: 1px dashed var(--border); }
+
+/* ===================== FOLDERS ===================== */
+.folders-section { margin-bottom: 8px; }
+.folder-item {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(240,201,110,0.06); border: 1px solid rgba(240,201,110,0.12);
+  border-radius: 7px; padding: 7px 10px; margin-bottom: 3px;
+  cursor: pointer; font-size: 0.80em; transition: background 0.15s;
+  color: rgba(242,237,224,0.80);
+}
+.folder-item:hover { background: rgba(240,201,110,0.14); }
+.folder-item.open { background: rgba(106,170,150,0.18); border-color: rgba(106,170,150,0.35); }
+.folder-item .folder-icon { color: #f0c96e; font-size: 0.9em; flex-shrink: 0; }
+.folder-item .folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folder-item .folder-count { color: rgba(240,201,110,0.38); font-size: 0.76em; flex-shrink: 0; }
+.folder-item .folder-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.folder-item .folder-share { color: #6aaa96; opacity: 0.6; cursor: pointer; font-size: 0.78em; }
+.folder-item .folder-share:hover { opacity: 1; }
+.folder-item .folder-del { color: #f08080; opacity: 0.5; cursor: pointer; font-size: 0.78em; }
+.folder-item .folder-del:hover { opacity: 1; }
+.folder-recipes { padding-left: 18px; display: none; }
+.folder-recipes.open { display: block; }
+.folder-drop-zone {
+  border: 2px dashed rgba(106,170,150,0.45); border-radius: 7px;
+  padding: 5px 8px; margin: 3px 0; font-size: 0.74em;
+  color: rgba(106,170,150,0.65); text-align: center; display: none;
+}
+.folder-drop-zone.drag-over { background: rgba(106,170,150,0.12); border-color: #6aaa96; color: #6aaa96; display: block; }
+.saved-item[draggable="true"] { cursor: grab; }
+.saved-item.dragging { opacity: 0.4; }
+
 @media print {
   #sidebar, .header-right, .output-actions, .tab-bar, .scale-notice, .no-print { display: none !important; }
   #main { padding: 0; margin-left: 0; }
@@ -757,7 +811,7 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
 <div id="login-screen">
   <div class="login-card">
     <div class="login-logo">Recipe Builder</div>
-    <div class="login-tagline">by Uzi - BETA</div>
+    <div class="login-tagline">by Uzi</div>
 
     <div id="login-msg" class="login-msg" style="display:none;"></div>
 
@@ -788,7 +842,7 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
 <aside id="sidebar" class="no-print">
   <div class="sidebar-brand">
     <h1>Recipe Builder</h1>
-    <span>by Uzi - BETA</span>
+    <span>by Uzi</span>
   </div>
   <!-- User info row (shown after login) -->
   <div class="sidebar-user" id="sidebar-user-row" style="display:none;">
@@ -800,6 +854,15 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
     <button class="sidebar-logout-btn" onclick="logOut()" title="Sign out">
       <i class="fa-solid fa-arrow-right-from-bracket"></i>
     </button>
+  </div>
+
+  <!-- FOLDERS SECTION -->
+  <div class="sidebar-section" id="folders-section" style="padding-bottom:4px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <div class="sidebar-section-title" style="margin-bottom:0;">Folders</div>
+      <button onclick="createFolder()" style="background:none;border:none;color:rgba(240,201,110,0.55);cursor:pointer;font-size:0.78em;padding:2px 4px;" title="New folder"><i class="fa-solid fa-folder-plus"></i></button>
+    </div>
+    <div class="folders-section" id="folders-container"></div>
   </div>
 
   <!-- TASKS PANEL (resizable top) -->
@@ -837,7 +900,7 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
       <i class="fa-solid fa-file-circle-plus"></i> New Recipe
     </button>
     <button class="sidebar-btn purple" onclick="openAiImportModal()">
-      <i class="fa-solid fa-wand-magic-sparkles"></i> Import Recipe
+      <i class="fa-solid fa-wand-magic-sparkles"></i> Import Recipe from URL
     </button>
   </div>
 </aside>
@@ -961,7 +1024,7 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
       <button class="modal-close" onclick="closeGroceryModal()"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="modal-body">
-      <div class="grocery-recipe-selector">
+      <div class="grocery-recipe-selector" id="grocery-recipe-selector">
         <h4>Select recipes to include</h4>
         <div class="grocery-checkboxes" id="grocery-checkboxes"></div>
       </div>
@@ -981,16 +1044,16 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
 <div class="modal-overlay" id="ai-import-modal">
   <div class="modal" style="max-width:540px;">
     <div class="modal-header">
-      <h2><i class="fa-solid fa-wand-magic-sparkles" style="color:var(--p-teal);margin-right:8px;"></i> Import Recipe from Video</h2>
+      <h2><i class="fa-solid fa-wand-magic-sparkles" style="color:var(--p-teal);margin-right:8px;"></i> Import Recipe from URL</h2>
       <div style="display:flex;align-items:center;gap:10px;">
         <span class="ai-badge"><i class="fa-solid fa-robot"></i> AI Powered</span>
         <button class="modal-close" onclick="closeAiImportModal()"><i class="fa-solid fa-xmark"></i></button>
       </div>
     </div>
     <div class="modal-body">
-      <p class="ai-desc">Paste a YouTube, Instagram, or TikTok URL — Claude will read the video and fill in your recipe card automatically.</p>
+      <p class="ai-desc">Paste any URL — a recipe website, YouTube video, TikTok, Instagram, or blog post. Claude will read the page and fill in your recipe card automatically.</p>
       <div class="ai-input-row">
-        <input type="url" id="ai-video-url" placeholder="https://www.youtube.com/watch?v=... or TikTok / Instagram URL">
+        <input type="url" id="ai-video-url" placeholder="https://... any recipe URL">
         <button class="btn btn-primary" id="ai-import-btn" onclick="importFromVideo()">
           <i class="fa-solid fa-wand-magic-sparkles"></i> Build
         </button>
@@ -1330,16 +1393,25 @@ function updateSavedRecipesUI() {
     var div = document.createElement('div');
     div.className = 'saved-item' + (recipe.id === currentRecipe.id ? ' active-recipe' : '');
     div.setAttribute('data-recipe-id', recipe.id);
+    div.setAttribute('draggable', 'true');
     var taskCount = recipe.tasks.length;
     var ingCount  = recipe.tasks.reduce(function(s,t) {
       return s + t.items.filter(function(i) { return i.type === 'ingredient'; }).length;
     }, 0);
     div.innerHTML =
+      '<i class="fa-solid fa-grip-vertical" style="color:rgba(240,201,110,0.25);font-size:0.75em;cursor:grab;flex-shrink:0;margin-right:2px;" title="Drag to folder"></i>' +
       '<span class="s-title">' + escapeHtml(recipe.title) + '</span>' +
       '<span class="s-meta">' + taskCount + 't &bull; ' + ingCount + 'i</span>' +
       '<i class="fa-solid fa-trash s-del" title="Delete" onclick="event.stopPropagation();deleteSavedRecipe(' + recipe.id + ')"></i>';
+    div.addEventListener('dragstart', function(e) {
+      e.dataTransfer.setData('recipeId', recipe.id);
+      div.classList.add('dragging');
+    });
+    div.addEventListener('dragend', function() {
+      div.classList.remove('dragging');
+    });
     div.onclick = function(e) {
-      if (e.target.classList.contains('s-del')) return;
+      if (e.target.classList.contains('s-del') || e.target.classList.contains('fa-trash')) return;
       loadRecipe(parseInt(div.getAttribute('data-recipe-id')));
     };
     container.appendChild(div);
@@ -1579,21 +1651,19 @@ function printSingleGrocery() {
   });
   var list = Object.values(map).sort(function(a,b) { return a.name.localeCompare(b.name); });
   if (!list.length) { toast('No ingredients to generate a grocery list.'); return; }
-  var html = '<h2>Grocery List: ' + escapeHtml(currentRecipe.title) + '</h2>';
-  if (yld && svc) html += '<p>Scaled for ' + svc + ' people (original: ' + yld + ')</p>';
-  html += '<ol>' + list.map(function(i) {
-    var qty  = parseFloat(i.quantity.toFixed(3)).toString().replace(/\.?0+$/, '');
-    var unit = (i.unitKey !== 'Units' && i.quantity > 1) ? i.unitName + 's' : i.unitName;
-    return '<li><strong>' + escapeHtml(i.name) + '</strong>: ' + qty + ' ' + unit + '</li>';
-  }).join('') + '</ol>';
-  var w = window.open('', '', 'height=600,width=800');
-  w.document.write('<html><head><title>Grocery List</title><style>body{font-family:Verdana,sans-serif;padding:28px;}ol{padding-left:20px;}li{margin-bottom:8px;border-bottom:1px dashed #ccc;padding-bottom:5px;}</style></head><body>' + html + '</body></html>');
-  w.document.close(); w.print();
+  // Open the grocery modal in single-recipe mode
+  openGroceryModal();
+  document.getElementById('grocery-checkboxes').innerHTML = '';
+  document.getElementById('grocery-recipe-selector').style.display = 'none';
+  var title = escapeHtml(currentRecipe.title) + (yld && svc ? ' — scaled for ' + svc : '');
+  renderEditableGroceryList(list, title);
 }
 
 // ===================== GROCERY MODAL =====================
 function openGroceryModal() {
+  groceryListItems = [];
   buildGroceryCheckboxes();
+  document.getElementById('grocery-recipe-selector').style.display = 'block';
   document.getElementById('grocery-list-output').innerHTML = '';
   document.getElementById('cost-estimate-output').innerHTML = '';
   document.getElementById('grocery-modal').classList.add('open');
@@ -1682,16 +1752,95 @@ function generateConsolidatedGrocery() {
   if (list.length === 0) {
     document.getElementById('grocery-list-output').innerHTML = '<p class="empty-state">No ingredients found in selected recipes.</p>'; return;
   }
-  var html = '<h3>Shopping List &mdash; ' + selected.map(function(r) { return escapeHtml(r.title); }).join(', ') + '</h3><ol>';
-  list.forEach(function(item) {
-    var qty  = parseFloat(item.quantity.toFixed(3)).toString().replace(/\.?0+$/, '');
+  renderEditableGroceryList(list, selected.map(function(r) { return escapeHtml(r.title); }).join(', '));
+}
+
+// Shared editable list state
+var groceryListItems = [];
+
+function renderEditableGroceryList(list, titleStr) {
+  groceryListItems = list.map(function(item, i) {
+    var qty = parseFloat(item.quantity.toFixed(3)).toString().replace(/\.?0+$/, '');
     var unit = (item.unitKey !== 'Units' && item.quantity > 1) ? item.unitName + 's' : item.unitName;
-    html += '<li><strong>' + escapeHtml(item.name) + '</strong>: ' + qty + ' ' + unit;
-    if (item.fromRecipes.length > 1) html += ' <span class="qty-tag">' + item.fromRecipes.length + ' recipes</span>';
+    return { id: i, name: item.name, display: qty + ' ' + unit, fromRecipes: item.fromRecipes || [], checked: false };
+  });
+  refreshGroceryListUI(titleStr);
+}
+
+function refreshGroceryListUI(titleStr) {
+  var container = document.getElementById('grocery-list-output');
+  var title = titleStr || container.getAttribute('data-title') || 'Shopping List';
+  container.setAttribute('data-title', title);
+
+  var html = '<div class="grocery-list-header">';
+  html += '<h3><i class="fa-solid fa-list-check" style="color:var(--p-teal);margin-right:8px;font-size:0.85em;"></i>' + title + '</h3>';
+  html += '</div>';
+  html += '<ul class="editable-grocery-list" id="editable-grocery-ul">';
+  groceryListItems.forEach(function(item) {
+    html += '<li class="editable-grocery-item' + (item.checked ? ' checked-off' : '') + '" data-id="' + item.id + '">';
+    html += '<input type="checkbox" class="grocery-item-check"' + (item.checked ? ' checked' : '') + ' onchange="toggleGroceryItem(' + item.id + ')">';
+    html += '<span class="grocery-item-name" contenteditable="true" onblur="updateGroceryItemName(' + item.id + ', this.textContent)">' + escapeHtml(item.name) + '</span>';
+    html += '<span class="grocery-item-qty" contenteditable="true" onblur="updateGroceryItemQty(' + item.id + ', this.textContent)">' + escapeHtml(item.display) + '</span>';
+    if (item.fromRecipes && item.fromRecipes.length > 1) html += '<span class="qty-tag">' + item.fromRecipes.length + ' recipes</span>';
+    html += '<button class="grocery-del-btn" onclick="removeGroceryItem(' + item.id + ')" title="Remove"><i class="fa-solid fa-xmark"></i></button>';
     html += '</li>';
   });
-  html += '</ol>';
-  document.getElementById('grocery-list-output').innerHTML = html;
+  html += '</ul>';
+  html += '<div class="grocery-add-row">';
+  html += '<input type="text" id="new-grocery-name" placeholder="Add item..." style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Verdana,sans-serif;font-size:0.82em;outline:none;" onkeydown="if(event.key===\'Enter\')addGroceryItem()">';
+  html += '<input type="text" id="new-grocery-qty" placeholder="Qty/unit" style="width:90px;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Verdana,sans-serif;font-size:0.82em;outline:none;" onkeydown="if(event.key===\'Enter\')addGroceryItem()">';
+  html += '<button class="btn btn-success btn-sm" onclick="addGroceryItem()"><i class="fa-solid fa-plus"></i> Add</button>';
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function toggleGroceryItem(id) {
+  var item = groceryListItems.find(function(i) { return i.id === id; });
+  if (item) {
+    item.checked = !item.checked;
+    var li = document.querySelector('.editable-grocery-item[data-id="' + id + '"]');
+    if (li) li.classList.toggle('checked-off', item.checked);
+  }
+}
+
+function updateGroceryItemName(id, val) {
+  var item = groceryListItems.find(function(i) { return i.id === id; });
+  if (item) item.name = val.trim();
+}
+
+function updateGroceryItemQty(id, val) {
+  var item = groceryListItems.find(function(i) { return i.id === id; });
+  if (item) item.display = val.trim();
+}
+
+function removeGroceryItem(id) {
+  groceryListItems = groceryListItems.filter(function(i) { return i.id !== id; });
+  var li = document.querySelector('.editable-grocery-item[data-id="' + id + '"]');
+  if (li) li.remove();
+}
+
+function addGroceryItem() {
+  var nameEl = document.getElementById('new-grocery-name');
+  var qtyEl  = document.getElementById('new-grocery-qty');
+  var name = nameEl.value.trim();
+  if (!name) { nameEl.focus(); return; }
+  var qty  = qtyEl.value.trim() || '';
+  var newId = Date.now();
+  groceryListItems.push({ id: newId, name: name, display: qty, fromRecipes: [], checked: false });
+  nameEl.value = ''; qtyEl.value = '';
+  // Append new item to list without full re-render
+  var ul = document.getElementById('editable-grocery-ul');
+  if (ul) {
+    var li = document.createElement('li');
+    li.className = 'editable-grocery-item';
+    li.setAttribute('data-id', newId);
+    li.innerHTML = '<input type="checkbox" class="grocery-item-check" onchange="toggleGroceryItem(' + newId + ')">' +
+      '<span class="grocery-item-name" contenteditable="true" onblur="updateGroceryItemName(' + newId + ', this.textContent)">' + escapeHtml(name) + '</span>' +
+      '<span class="grocery-item-qty" contenteditable="true" onblur="updateGroceryItemQty(' + newId + ', this.textContent)">' + escapeHtml(qty) + '</span>' +
+      '<button class="grocery-del-btn" onclick="removeGroceryItem(' + newId + ')" title="Remove"><i class="fa-solid fa-xmark"></i></button>';
+    ul.appendChild(li);
+  }
+  nameEl.focus();
 }
 
 // ===================== AI COST ESTIMATE =====================
@@ -1858,12 +2007,19 @@ function estimateGroceryCost() {
 }
 
 function printGroceryListModal() {
-  var listContent = document.getElementById('grocery-list-output').innerHTML;
+  if (!groceryListItems || groceryListItems.length === 0) { toast('Generate a list first.'); return; }
+  var title = document.getElementById('grocery-list-output').getAttribute('data-title') || 'Shopping List';
+  var listHtml = '<h2>' + title + '</h2><ol>';
+  groceryListItems.forEach(function(item) {
+    if (!item.checked) {
+      listHtml += '<li><strong>' + item.name + '</strong>' + (item.display ? ': ' + item.display : '') + '</li>';
+    }
+  });
+  listHtml += '</ol>';
   var costContent = document.getElementById('cost-estimate-output').innerHTML;
-  if (!listContent || listContent.indexOf('empty-state') !== -1) { toast('Generate a list first.'); return; }
-  var combined = listContent + (costContent ? '<hr style="margin:20px 0;">' + costContent : '');
+  var combined = listHtml + (costContent ? '<hr style="margin:20px 0;">' + costContent : '');
   var w = window.open('', '', 'height=700,width=860');
-  w.document.write('<html><head><title>Grocery List</title><style>body{font-family:Verdana,sans-serif;padding:28px;max-width:700px;margin:0 auto;}h3{font-size:1.2em;margin-bottom:10px;}ol{padding-left:20px;}li{margin-bottom:8px;border-bottom:1px dashed #ccc;padding-bottom:6px;line-height:1.4;}strong{font-weight:700;}table{width:100%;border-collapse:collapse;font-size:0.9em;margin-top:8px;}th{text-align:left;border-bottom:2px solid #ccc;padding:5px 6px;font-size:0.78em;text-transform:uppercase;color:#666;}th:last-child,td:last-child{text-align:right;}td{padding:6px 6px;border-bottom:1px solid #eee;}.cost-total-row td{font-weight:700;background:#f5f5f5;border-top:2px solid #ccc;}</style></head><body>' + combined + '</body></html>');
+  w.document.write('<html><head><title>Grocery List</title><style>body{font-family:Verdana,sans-serif;padding:28px;max-width:700px;margin:0 auto;}h2{font-size:1.4em;margin-bottom:14px;}ol{padding-left:20px;}li{margin-bottom:8px;border-bottom:1px dashed #ccc;padding-bottom:6px;line-height:1.4;}strong{font-weight:700;}table{width:100%;border-collapse:collapse;font-size:0.9em;margin-top:8px;}th{text-align:left;border-bottom:2px solid #ccc;padding:5px 6px;font-size:0.78em;text-transform:uppercase;color:#666;}th:last-child,td:last-child{text-align:right;}td{padding:6px 6px;border-bottom:1px solid #eee;}.cost-total-row td{font-weight:700;background:#f5f5f5;border-top:2px solid #ccc;}</style></head><body>' + combined + '</body></html>');
   w.document.close(); w.print();
 }
 
@@ -2115,38 +2271,33 @@ function importFromVideo() {
   var statusEl = document.getElementById('ai-status');
   var btn = document.getElementById('ai-import-btn');
 
-  if (!url) { toast('Please paste a video URL first.'); return; }
-
-  var validHost = /youtube\.com|youtu\.be|tiktok\.com|instagram\.com/i.test(url);
-  if (!validHost) {
-    toast('Please use a YouTube, TikTok, or Instagram URL.');
-    return;
-  }
+  if (!url) { toast('Please paste a URL first.'); return; }
 
   btn.disabled = true;
   btn.innerHTML = '<span class="ai-spinner"></span> Analysing…';
   statusEl.className = 'ai-status loading';
-  statusEl.innerHTML = '<span class="ai-spinner"></span><span>Claude is reading the video and building your recipe. This may take 15–30 seconds…</span>';
+  statusEl.innerHTML = '<span class="ai-spinner"></span><span>Claude is reading the page and building your recipe. This may take 15–30 seconds…</span>';
   statusEl.style.display = 'flex';
 
   var systemPrompt = [
-    'You are a recipe extraction assistant.',
-    'The user will give you a URL to a cooking video (YouTube, TikTok, or Instagram).',
-    'Use web_search to search for the recipe from that video — search the URL directly, and also search for the recipe by title if needed.',
-    'Extract a complete recipe from everything you find.',
-    'Respond ONLY with a single valid JSON object — absolutely no markdown fences, no explanation, no preamble, no trailing text.',
+    'You are a recipe extraction assistant. The user will give you a URL.',
+    'Use web_search to fetch and read the content at that URL.',
+    'Also search for the recipe title if needed to get full details.',
+    'Extract a complete, detailed recipe from everything you find.',
+    'Respond ONLY with a single valid JSON object — no markdown fences, no explanation, no preamble.',
     'Use this exact structure:',
     '{"title":"Recipe name","yield":4,"tasks":[{"name":"Ingredients","items":[{"type":"ingredient","ingredient":"Flour","quantity":2,"unitKey":"Cup"}]},{"name":"Instructions","items":[{"type":"instruction","text":"Preheat oven to 180C.","imageUrl":""}]}]}',
     'Rules:',
     '- unitKey must be one of: Tbs, Tsp, Cup, Units, KG, GRAMS, LBS, OZ, ML, Liters, Pinch',
-    '- quantity must be a plain number',
+    '- quantity must be a plain number (no fractions, convert 1/2 to 0.5 etc)',
     '- yield must be a plain number',
-    '- Group items into logical tasks: Ingredients, then named instruction sections',
+    '- Separate ingredients and instructions into clearly named tasks',
+    '- Include ALL ingredients and ALL steps — do not truncate',
     '- If no recipe is found return exactly: {"error":"No recipe found."}'
   ].join('\n');
 
   var messages = [
-    { role: 'user', content: 'Extract the recipe from this video: ' + url }
+    { role: 'user', content: 'Extract the recipe from this URL: ' + url }
   ];
 
   // Recursive function to handle the full tool-use agentic loop
@@ -2289,6 +2440,11 @@ function initSidebarResize() {
   var isDragging = false;
   var startY     = 0;
   var startTopH  = 0;
+
+  // Set initial position to 2/3 down the sidebar
+  var initialH = Math.round(sidebar.offsetHeight * 0.62);
+  topPanel.style.flex   = 'none';
+  topPanel.style.height = initialH + 'px';
 
   divider.addEventListener('mousedown', function(e) {
     isDragging  = true;
@@ -2573,12 +2729,154 @@ function onUserReady(user) {
   });
 }
 
+
+// ===================== FOLDERS =====================
+var folders = [];
+
+function saveFolders() {
+  try { localStorage.setItem('uzi_folders_v1', JSON.stringify(folders)); } catch(e) {}
+}
+function loadFolders() {
+  try {
+    var s = localStorage.getItem('uzi_folders_v1');
+    folders = s ? JSON.parse(s) : [];
+  } catch(e) { folders = []; }
+  renderFolders();
+}
+function createFolder() {
+  showDialog({
+    title: 'New Folder', input: true, inputPlaceholder: 'Folder name',
+    buttons: [
+      { label: 'Cancel', cls: 'btn btn-muted btn-sm', value: false },
+      { label: 'Create', cls: 'btn btn-primary btn-sm', value: true }
+    ],
+    callback: function(val) {
+      if (!val || typeof val !== 'string' || !val.trim()) return;
+      folders.push({ id: Date.now(), name: val.trim(), recipeIds: [] });
+      saveFolders(); renderFolders();
+    }
+  });
+}
+function deleteFolder(folderId) {
+  showDialog({
+    title: 'Delete Folder', message: 'Delete this folder? Recipes inside will not be deleted.',
+    buttons: [
+      { label: 'Cancel', cls: 'btn btn-muted btn-sm', value: false },
+      { label: 'Delete', cls: 'btn btn-danger btn-sm', value: true }
+    ],
+    callback: function(confirmed) {
+      if (!confirmed) return;
+      folders = folders.filter(function(f) { return f.id !== folderId; });
+      saveFolders(); renderFolders();
+    }
+  });
+}
+function shareFolder(folderId) {
+  var folder = folders.find(function(f) { return f.id === folderId; });
+  if (!folder) return;
+  var recipesInFolder = savedRecipes.filter(function(r) { return folder.recipeIds.indexOf(r.id) !== -1; });
+  if (recipesInFolder.length === 0) { toast('No recipes in this folder.'); return; }
+  var text = 'FOLDER: ' + folder.name + '\n' + '='.repeat(40) + '\n\n';
+  recipesInFolder.forEach(function(recipe) {
+    text += 'RECIPE: ' + recipe.title + '\n';
+    if (recipe.yield) text += 'Serves: ' + recipe.yield + '\n';
+    recipe.tasks.forEach(function(task) {
+      text += '\n[' + task.name.toUpperCase() + ']\n';
+      task.items.forEach(function(item) {
+        if (item.type === 'ingredient') {
+          text += '- ' + item.ingredient + ': ' + item.quantity + ' ' + ((MEASUREMENT_TYPES[item.unitKey] || {}).name || item.unitKey) + '\n';
+        } else { text += '-> ' + item.text + '\n'; }
+      });
+    });
+    text += '\n' + '-'.repeat(40) + '\n\n';
+  });
+  showDialog({
+    title: 'Share Folder: ' + folder.name,
+    message: 'Copy the text below to share all ' + recipesInFolder.length + ' recipe(s):',
+    input: true, inputValue: text,
+    buttons: [{ label: 'Close', cls: 'btn btn-muted btn-sm', value: false }]
+  });
+}
+function toggleFolder(folderId) {
+  var el = document.getElementById('folder-recipes-' + folderId);
+  var icon = document.getElementById('folder-chevron-' + folderId);
+  var item = document.getElementById('folder-item-' + folderId);
+  if (!el) return;
+  var isOpen = el.classList.contains('open');
+  el.classList.toggle('open', !isOpen);
+  item.classList.toggle('open', !isOpen);
+  if (icon) icon.className = 'fa-solid ' + (isOpen ? 'fa-chevron-right' : 'fa-chevron-down');
+}
+function addRecipeToFolder(folderId, recipeId) {
+  var folder = folders.find(function(f) { return f.id === folderId; });
+  if (!folder) return;
+  if (folder.recipeIds.indexOf(recipeId) === -1) {
+    folder.recipeIds.push(recipeId);
+    saveFolders(); renderFolders(); updateSavedRecipesUI();
+    toast('Added to folder.');
+  }
+}
+function removeRecipeFromFolder(folderId, recipeId) {
+  var folder = folders.find(function(f) { return f.id === folderId; });
+  if (!folder) return;
+  folder.recipeIds = folder.recipeIds.filter(function(id) { return id !== recipeId; });
+  saveFolders(); renderFolders(); updateSavedRecipesUI();
+}
+function renderFolders() {
+  var container = document.getElementById('folders-container');
+  if (!container) return;
+  if (folders.length === 0) {
+    container.innerHTML = '<p style="color:rgba(240,201,110,0.3);font-size:0.74em;padding:2px 4px;font-style:italic;">No folders yet</p>';
+    return;
+  }
+  container.innerHTML = '';
+  folders.forEach(function(folder) {
+    var recipesInFolder = savedRecipes.filter(function(r) { return folder.recipeIds.indexOf(r.id) !== -1; });
+    var wrapper = document.createElement('div');
+    var folderEl = document.createElement('div');
+    folderEl.className = 'folder-item';
+    folderEl.id = 'folder-item-' + folder.id;
+    folderEl.innerHTML =
+      '<i class="fa-solid fa-chevron-right folder-icon" id="folder-chevron-' + folder.id + '" style="font-size:0.7em;"></i>' +
+      '<i class="fa-solid fa-folder folder-icon"></i>' +
+      '<span class="folder-name" onclick="toggleFolder(' + folder.id + ')">' + escapeHtml(folder.name) + '</span>' +
+      '<span class="folder-count">' + recipesInFolder.length + '</span>' +
+      '<span class="folder-actions">' +
+        '<span class="folder-share" onclick="event.stopPropagation();shareFolder(' + folder.id + ')" title="Share"><i class="fa-solid fa-share-nodes"></i></span>' +
+        '<span class="folder-del" onclick="event.stopPropagation();deleteFolder(' + folder.id + ')" title="Delete"><i class="fa-solid fa-trash"></i></span>' +
+      '</span>';
+    folderEl.addEventListener('dragover', function(e) { e.preventDefault(); folderEl.style.background = 'rgba(106,170,150,0.22)'; });
+    folderEl.addEventListener('dragleave', function() { folderEl.style.background = ''; });
+    folderEl.addEventListener('drop', function(e) {
+      e.preventDefault(); folderEl.style.background = '';
+      var recipeId = parseInt(e.dataTransfer.getData('recipeId'));
+      if (recipeId) addRecipeToFolder(folder.id, recipeId);
+    });
+    wrapper.appendChild(folderEl);
+    var recipesEl = document.createElement('div');
+    recipesEl.className = 'folder-recipes';
+    recipesEl.id = 'folder-recipes-' + folder.id;
+    recipesInFolder.forEach(function(recipe) {
+      var ri = document.createElement('div');
+      ri.className = 'saved-item';
+      ri.style.cssText = 'font-size:0.76em;margin:2px 0;';
+      ri.innerHTML =
+        '<span class="s-title" onclick="loadRecipe(' + recipe.id + ')">' + escapeHtml(recipe.title) + '</span>' +
+        '<span class="s-del" onclick="removeRecipeFromFolder(' + folder.id + ',' + recipe.id + ')" title="Remove from folder"><i class="fa-solid fa-xmark"></i></span>';
+      recipesEl.appendChild(ri);
+    });
+    wrapper.appendChild(recipesEl);
+    container.appendChild(wrapper);
+  });
+}
+
 // ===================== INIT =====================
 document.addEventListener('DOMContentLoaded', function() {
   populateMeasurementDropdown();
   initTaskSortable();
   initSidebarResize();
   showInputPanel('instruction');
+  loadFolders();
 
   // THE ONLY auth entry point on page load — simple and reliable
   sb.auth.getSession().then(function(resp) {
