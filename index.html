@@ -1920,11 +1920,10 @@ function renderActiveTaskItems() {
     div.className = 'editable-item';
     div.setAttribute('data-item-id', item.id);
     if (item.type === 'taskref') {
-      // Build source task options (all tasks before current)
       var currentIdx = currentRecipe.tasks.findIndex(function(t) { return t.id === currentTaskId; });
       var taskOpts = currentRecipe.tasks.map(function(t, ti) {
         if (ti >= currentIdx) return '';
-        return '<option value="' + t.id + '"' + (String(t.id) === String(item.fromTaskId) ? ' selected' : '') + '>' + escapeHtml(t.name) + '</option>';
+        return '<option value="' + t.id + '"'  + (String(t.id) === String(item.fromTaskId) ? ' selected' : '') + '>' + escapeHtml(t.name) + '</option>';
       }).join('');
       var unitOpts = Object.keys(MEASUREMENT_TYPES).map(function(k) {
         return '<option value="' + k + '"' + (item.unitKey === k ? ' selected' : '') + '>' + (k === 'PCT' ? '% (percentage)' : MEASUREMENT_TYPES[k].name) + '</option>';
@@ -1936,20 +1935,18 @@ function renderActiveTaskItems() {
       div.innerHTML =
         '<i class="fa-solid fa-grip-vertical drag-handle"></i>' +
         '<span class="item-badge badge-ref">Ref</span>' +
-        '<input type="text" value="' + escapeHtml(item.label || '') + '" placeholder="Label" ' +
-          'oninput="updateTaskRefField(' + item.id + ',\'label\',this.value)" ' +
-          'style="flex:2;min-width:110px;font-weight:600;color:#4c1d95;">' +
-        '<select onchange="updateTaskRefField(' + item.id + ',\'fromTask\',this.value)" ' +
-          'style="flex:1;min-width:100px;color:#4c1d95;font-size:0.8em;">' +
-          taskOpts +
-        '</select>' +
-        '<input type="number" value="' + (item.qty || '') + '" placeholder="Qty" ' +
-          'oninput="updateTaskRefField(' + item.id + ',\'qty\',this.value)" ' +
-          'style="max-width:65px;">' +
-        '<select onchange="updateTaskRefField(' + item.id + ',\'unitKey\',this.value)" style="max-width:110px;">' +
-          '<option value="">no unit</option>' + unitOpts +
-        '</select>' +
+        '<input type="text" class="tref-label" value="' + escapeHtml(item.label || '') + '" placeholder="Label" style="flex:2;min-width:110px;font-weight:600;color:#4c1d95;">' +
+        '<select class="tref-task" style="flex:1;min-width:100px;color:#4c1d95;font-size:0.8em;">' + taskOpts + '</select>' +
+        '<input type="number" class="tref-qty" value="' + (item.qty || '') + '" placeholder="Qty" style="max-width:65px;">' +
+        '<select class="tref-unit" style="max-width:110px;"><option value="">no unit</option>' + unitOpts + '</select>' +
         '<i class="fa-solid fa-trash del-item" onclick="deleteItem(' + item.id + ')"></i>';
+      // Use addEventListener to avoid any inline quote escaping issues
+      (function(id) {
+        div.querySelector('.tref-label').addEventListener('input', function() { updateTaskRefField(id, 'label', this.value); });
+        div.querySelector('.tref-task').addEventListener('change', function() { updateTaskRefField(id, 'fromTask', this.value); });
+        div.querySelector('.tref-qty').addEventListener('input', function() { updateTaskRefField(id, 'qty', this.value); });
+        div.querySelector('.tref-unit').addEventListener('change', function() { updateTaskRefField(id, 'unitKey', this.value); });
+      })(item.id);
     } else if (item.type === 'instruction') {
       div.innerHTML =
         '<i class="fa-solid fa-grip-vertical drag-handle"></i>' +
