@@ -1130,7 +1130,7 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
         <div style="font-size:0.79em;font-weight:700;color:var(--ink);margin-bottom:6px;letter-spacing:0.3px;">
           <i class="fa-solid fa-link" style="color:var(--p-teal);margin-right:6px;"></i>Import from URL
         </div>
-        <p class="ai-desc" style="margin-bottom:8px;">Paste any link — recipe site, YouTube, TikTok, Instagram, or blog.</p>
+        <p class="ai-desc" style="margin-bottom:8px;">Paste any recipe link — AllRecipes, Serious Eats, BBC Good Food, TikTok, YouTube, Instagram, or any recipe blog.</p>
         <div class="ai-input-row">
           <input type="url" id="ai-video-url" placeholder="https://...">
           <button class="btn btn-primary" id="ai-import-btn" onclick="importFromVideo()">
@@ -2531,20 +2531,44 @@ function importFromVideo() {
   btn.disabled = true;
   btn.innerHTML = '<span class="ai-spinner"></span> Importing\u2026';
   statusEl.className = 'ai-status loading';
-  statusEl.innerHTML = '<span class="ai-spinner"></span><span>Reading page and building recipe\u2026 (~15 sec)</span>';
+  statusEl.innerHTML = '<span class="ai-spinner"></span><span>Fetching recipe page\u2026</span>';
   statusEl.style.display = 'flex';
 
-  // Use url_context tool — Claude fetches the URL server-side in one call, no loops
-  anthropicFetch({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 4000,
-    tools: [{ type: 'url_context', name: 'url_context' }],
-    tool_choice: { type: 'any' },
-    system: IMPORT_SYSTEM_PROMPT,
-    messages: [{
-      role: 'user',
-      content: 'Fetch this URL and extract the recipe: ' + url
-    }]
+  // Step 1: Use Jina AI reader to get clean text from any URL
+  // r.jina.ai prepends to any URL and returns clean readable markdown — no API key needed
+  // It handles paywalls, SPAs, and sites that block scrapers
+  var jinaUrl = 'https://r.jina.ai/' + url;
+
+  fetch(jinaUrl, {
+    headers: {
+      'Accept': 'text/plain',
+      'X-Return-Format': 'text'
+    }
+  })
+  .then(function(res) {
+    if (!res.ok) throw new Error('fetch_failed');
+    return res.text();
+  })
+  .then(function(pageText) {
+    // Trim to ~15000 chars focused on recipe content
+    if (pageText.length > 15000) {
+      var idx = pageText.search(/ingredient|recipe|method|instruction|preparation/i);
+      if (idx > 1000) pageText = pageText.substring(Math.max(0, idx - 200));
+      pageText = pageText.substring(0, 15000);
+    }
+
+    statusEl.innerHTML = '<span class="ai-spinner"></span><span>Structuring recipe\u2026</span>';
+
+    // Step 2: Single Claude call with clean text — fast, no loops
+    return anthropicFetch({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4000,
+      system: IMPORT_SYSTEM_PROMPT,
+      messages: [{
+        role: 'user',
+        content: 'Here is the recipe page content:\n\n' + pageText + '\n\nExtract and structure the full recipe from the above.'
+      }]
+    });
   })
   .then(function(res) {
     if (!res.ok) return res.json().then(function(e) {
@@ -2552,43 +2576,12 @@ function importFromVideo() {
     });
     return res.json();
   })
-  .then(function(data) {
-    // url_context may return tool_result blocks — extract all text content
-    var fullText = '';
-    (data.content || []).forEach(function(b) {
-      if (b.type === 'text') fullText += b.text;
-      // Also check tool_result content
-      if (b.type === 'tool_result' && Array.isArray(b.content)) {
-        b.content.forEach(function(c) { if (c.type === 'text') fullText += c.text; });
-      }
-    });
-
-    // If Claude fetched the URL but hasn't generated the JSON yet, make a second call
-    if (fullText && !fullText.trim().startsWith('{') && !fullText.includes('"tasks"')) {
-      return anthropicFetch({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4000,
-        system: IMPORT_SYSTEM_PROMPT,
-        messages: [
-          { role: 'user', content: 'Fetch this URL and extract the recipe: ' + url },
-          { role: 'assistant', content: data.content },
-          { role: 'user', content: 'Now extract and structure the recipe from that page content into the required JSON format.' }
-        ]
-      })
-      .then(function(res2) {
-        if (!res2.ok) return res2.json().then(function(e) { throw new Error('API ' + res2.status + ': ' + (e.error && e.error.message ? e.error.message : JSON.stringify(e))); });
-        return res2.json();
-      })
-      .then(parseImportResponse);
-    }
-
-    return parseImportResponse(data);
-  })
-  .then(function(p)    { populateRecipeFromParsed(p, statusEl, btn, urlInput, 'Build'); })
+  .then(parseImportResponse)
+  .then(function(p) { populateRecipeFromParsed(p, statusEl, btn, urlInput, 'Build'); })
   .catch(function(err) {
-    // Fallback: if url_context isn't available, try without tools
-    if (err.message && (err.message.indexOf('url_context') !== -1 || err.message.indexOf('400') !== -1)) {
-      statusEl.innerHTML = '<span class="ai-spinner"></span><span>Trying alternative method\u2026</span>';
+    // If Jina fetch failed, fall back to asking Claude directly with URL
+    if (err.message === 'fetch_failed' || err.message.indexOf('fetch') !== -1) {
+      statusEl.innerHTML = '<span class="ai-spinner"></span><span>Trying direct import\u2026</span>';
       importFromVideoFallback(url, urlInput, statusEl, btn);
     } else {
       statusEl.className = 'ai-status error';
@@ -2599,26 +2592,42 @@ function importFromVideo() {
   });
 }
 
-// Fallback: ask Claude to use its training knowledge about the recipe if URL fetch fails
+// Fallback: pass URL directly to Claude with web_search (one round only)
 function importFromVideoFallback(url, urlInput, statusEl, btn) {
-  anthropicFetch({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 4000,
-    system: IMPORT_SYSTEM_PROMPT,
-    messages: [{
-      role: 'user',
-      content: 'The URL is: ' + url + '\n\nBased on the URL and any recipe knowledge you have, extract and structure the recipe into the required JSON format. If it is a well-known recipe site, use your knowledge of common recipes from that site.'
-    }]
-  })
-  .then(function(res) {
-    if (!res.ok) return res.json().then(function(e) { throw new Error('API ' + res.status + ': ' + (e.error && e.error.message ? e.error.message : JSON.stringify(e))); });
-    return res.json();
-  })
-  .then(parseImportResponse)
+  var messages = [{ role: 'user', content: 'Fetch and extract the recipe from this URL: ' + url }];
+  var done = false;
+
+  function call() {
+    return anthropicFetch({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4000,
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+      system: IMPORT_SYSTEM_PROMPT,
+      messages: messages
+    })
+    .then(function(res) {
+      if (!res.ok) return res.json().then(function(e) { throw new Error('API ' + res.status + ': ' + (e.error && e.error.message ? e.error.message : JSON.stringify(e))); });
+      return res.json();
+    })
+    .then(function(data) {
+      if (data.stop_reason === 'tool_use' && !done) {
+        done = true;
+        messages.push({ role: 'assistant', content: data.content });
+        var results = (data.content || [])
+          .filter(function(b) { return b.type === 'tool_use'; })
+          .map(function(b) { return { type: 'tool_result', tool_use_id: b.id, content: 'fetched' }; });
+        messages.push({ role: 'user', content: results });
+        return call();
+      }
+      return parseImportResponse(data);
+    });
+  }
+
+  call()
   .then(function(p) { populateRecipeFromParsed(p, statusEl, btn, urlInput, 'Build'); })
   .catch(function(err) {
     statusEl.className = 'ai-status error';
-    statusEl.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i><span><strong>Could not import:</strong> ' + escapeHtml(err.message) + '. Try the image import instead — take a screenshot of the recipe and upload it.</span>';
+    statusEl.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i><span><strong>Could not import:</strong> ' + escapeHtml(err.message) + '. Try pasting the recipe text or use the image import.</span>';
     btn.disabled = false;
     btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Build';
   });
