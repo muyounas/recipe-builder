@@ -388,31 +388,8 @@ body {
 /* ===================== RECIPE OUTPUT ===================== */
 .output-actions { display: flex; gap: 7px; flex-wrap: wrap; }
 
-#output-display {
-  padding: 0;
-  font-family: 'Verdana', Geneva, sans-serif;
-  min-height: 100px;
-}
+#output-display { padding: 22px; font-family: 'Verdana', Geneva, sans-serif; min-height: 100px; }
 
-/* Hero image */
-.recipe-hero-img {
-  width: 100%; max-height: 240px;
-  object-fit: cover; display: block;
-  border-radius: var(--radius) var(--radius) 0 0;
-}
-
-/* Title + meta */
-.recipe-card-meta { padding: 20px 22px 8px; }
-
-#output-display .recipe-title-display {
-  font-family: 'Playfair Display', serif;
-  font-size: 2.1em; font-weight: 900; color: var(--ink);
-  margin-bottom: 6px; line-height: 1.15;
-}
-#output-display .recipe-yield-display {
-  color: var(--ink); font-size: 1em; margin-bottom: 18px; font-weight: 600;
-}
-#output-display .recipe-yield-display strong { color: var(--p-terracotta); }
 
 .scale-notice {
   background: #ede8da; border: 1px solid #cfc9b8; border-radius: 8px;
@@ -443,59 +420,18 @@ body {
 .task-teal   .task-block-header { background: #f0fdfa; color: #134e4a; border-bottom: 2px solid #14b8a6; }
 .task-teal   .task-block-header i { color: #14b8a6; }
 
-/* Instructions — red, bold, circle icon vertically centred to text */
-li.recipe-instruction {
-  color: #c0392b; font-weight: 700;
-  display: flex; align-items: center; gap: 10px;
-  line-height: 1.5; font-size: 1em;
-  padding: 10px 0; border-bottom: 1px solid #f5f0e8;
-}
-li.recipe-instruction:last-child { border-bottom: none; }
-li.recipe-instruction .instr-icon {
-  flex-shrink: 0;
-  width: 26px; height: 26px; border-radius: 50%;
-  background: #c0392b; color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.75em;
-}
-
-/* Ingredients — original style */
-li.recipe-ingredient {
-  display: flex; align-items: center; gap: 9px;
-  font-size: 0.86em; color: var(--ink);
-  padding: 3px 0; border-bottom: none;
-}
-li.recipe-ingredient:last-child { border-bottom: none; }
+li.recipe-instruction { color: #c0392b; font-weight: 700; display: flex; align-items: flex-start; gap: 8px; line-height: 1.45; font-size: 0.88em; }
+li.recipe-instruction i { margin-top: 3px; flex-shrink: 0; font-size: 0.76em; }
+li.recipe-ingredient { display: flex; align-items: center; gap: 9px; font-size: 0.86em; color: var(--ink); padding: 3px 0; }
 li.recipe-ingredient i { flex-shrink: 0; font-size: 0.78em; }
-li.recipe-ingredient .ing-name { font-weight: 700; flex: 1; font-size: 1em; color: #1a1a2e; }
-li.recipe-ingredient .ing-qty {
-  font-weight: 700; font-size: 0.92em;
-  color: #2e3a52; background: #f2ede0;
-  padding: 3px 10px; border-radius: 20px;
-  white-space: nowrap; flex-shrink: 0;
-}
-.instruction-image { max-width: 100%; max-height: 200px; border-radius: 8px; margin-top: 10px; display: block; object-fit: cover; }
-
-/* Ingredient emoji icon */
-.ing-emoji {
-  font-size: 1.3em;
-  flex-shrink: 0;
-  width: 28px; text-align: center;
-  line-height: 1;
-}
-
-/* Hero image */
-.recipe-hero-img {
-  width: 100%; max-height: 240px;
-  object-fit: cover; display: block;
-  border-radius: var(--radius) var(--radius) 0 0;
-}
+li.recipe-ingredient .ing-name { font-weight: 700; }
+li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
+.instruction-image { max-width: 100%; max-height: 180px; border-radius: 6px; margin-top: 8px; display: block; object-fit: cover; }
 
 @media (max-width: 900px) {
   #output-display .recipe-title-display { font-size: 1.7em; }
   .task-block { margin: 0 0 16px; }
   .scale-notice { margin: 0 0 16px; }
-  .recipe-card-meta { padding: 16px 16px 4px; }
   .task-block-body { padding: 10px 13px; }
   .task-block-header { padding: 11px 13px; font-size: 1.05em; }
   li.recipe-ingredient, li.recipe-instruction { font-size: 0.97em; }
@@ -1961,20 +1897,12 @@ function generateRecipeCard() {
 
   var out = '';
 
-  // Hero image
-  if (currentRecipe.image) {
-    out += '<img src="' + escapeHtml(currentRecipe.image) + '" class="recipe-hero-img" alt="' + escapeHtml(title) + '">';
-  }
-
-  // Title + yield
-  out += '<div class="recipe-card-meta">';
   out += '<div class="recipe-title-display">' + escapeHtml(title) + '</div>';
   if (yld) {
     out += '<div class="recipe-yield-display">Serves: <strong>' + yld + '</strong>';
     if (scaled) out += ' &mdash; scaled to <strong>' + svc + '</strong>';
     out += '</div>';
   }
-  out += '</div>';
 
   if (scaled) {
     out += '<div class="scale-notice no-print"><i class="fas fa-info-circle"></i> Ingredients scaled &times;' + sf.toFixed(2) + ' for <strong>' + svc + ' people</strong>.</div>';
@@ -1993,7 +1921,7 @@ function generateRecipeCard() {
 
     task.items.forEach(function(item) {
       if (item.type === 'instruction') {
-        out += '<li class="recipe-instruction"><span class="instr-icon"><i class="fa-solid fa-chevron-right"></i></span><span>' + escapeHtml(item.text);
+        out += '<li class="recipe-instruction"><i class="fa-solid fa-chevron-right"></i><span>' + escapeHtml(item.text);
         if (item.imageUrl) out += '<br><img src="' + escapeHtml(item.imageUrl) + '" class="instruction-image" alt="">';
         out += '</span></li>';
       } else {
@@ -2002,17 +1930,11 @@ function generateRecipeCard() {
         if (sf !== 1) qty = parseFloat((item.quantity * sf).toFixed(3)).toString().replace(/\.?0+$/, '');
         var emoji = getIngredientEmoji(item.ingredient);
         var unitAbbr = getUnitAbbr(item.unitKey);
+        var ingIcon = getIngredientEmoji(item.ingredient);
         out += '<li class="recipe-ingredient">';
-        // Left: emoji if we have one, colour dot if not
-        if (emoji) {
-          out += '<span class="ing-emoji">' + emoji + '</span>';
-        } else {
-          out += '<i class="fa-solid fa-circle-dot" style="color:' + mt.color + ';font-size:0.85em;flex-shrink:0;"></i>';
-        }
-        // Middle: ingredient name
+        out += ingIcon ? '<span style="font-size:1.1em;flex-shrink:0;">' + ingIcon + '</span>' : '<i class="fa-solid fa-circle-dot" style="color:' + mt.color + ';"></i>';
         out += '<span class="ing-name">' + escapeHtml(item.ingredient) + '</span>';
-        // Right: qty + unit pill
-        out += '<span class="ing-qty" style="background:' + mt.color + '22;color:' + mt.color + ';border:1.5px solid ' + mt.color + '44;">' + qty + ' ' + escapeHtml(mt.name) + '</span>';
+        out += '<span class="ing-qty">' + qty + ' ' + escapeHtml(mt.name) + '</span>';
         out += '</li>';
       }
     });
