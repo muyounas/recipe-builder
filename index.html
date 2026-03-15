@@ -3579,6 +3579,17 @@ function renderFolders() {
 
 
 // ===================== INIT =====================
+
+// bootApp must live at script scope — Supabase may fire onAuthStateChange
+// before DOMContentLoaded, so it must be available immediately
+function bootApp(user) {
+  hideLoginScreen(user);
+  loadAllRecipes().then(function() {
+    if (savedRecipes.length > 0) loadRecipe(savedRecipes[0].id);
+    else resetEditorState();
+  });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   populateMeasurementDropdown();
   initTaskSortable();
@@ -3586,23 +3597,25 @@ document.addEventListener('DOMContentLoaded', function() {
   showInputPanel('instruction');
   loadFolders();
 
-  // THE ONLY auth entry point on page load — simple and reliable
+  // Check for existing session on page load (handles refresh / returning user)
   sb.auth.getSession().then(function(resp) {
     var session = resp.data && resp.data.session;
     if (session && session.user) {
-      onUserReady(session.user);
+      bootApp(session.user);
     } else {
       showLoginScreen();
       resetEditorState();
     }
   });
 
-  // Only handle sign-out from listener (sign-in handled directly in submitAuthForm)
+  // Only handle sign-out from listener
   sb.auth.onAuthStateChange(function(event, session) {
     console.log('Auth:', event);
     if (event === 'SIGNED_OUT') {
-      currentUser = null; savedRecipes = [];
-      updateSavedRecipesUI(); showLoginScreen();
+      currentUser = null;
+      savedRecipes = [];
+      updateSavedRecipesUI();
+      showLoginScreen();
     }
   });
 
