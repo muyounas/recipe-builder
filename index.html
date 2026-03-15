@@ -986,6 +986,42 @@ li.recipe-ingredient .ing-qty  { color: var(--ink); font-size: 0.92em; font-weig
   #recipes-peek-bar { display: none !important; }
 }
 
+
+/* ===================== TASK REFERENCE ITEMS ===================== */
+.badge-ref { background: #ede9fb; color: #4c1d95; }
+
+li.recipe-taskref {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 9px 12px; margin: 6px 0;
+  background: linear-gradient(135deg, #f5f3ff 0%, #eef6ff 100%);
+  border: 1.5px solid #c4b5fd;
+  border-radius: 10px;
+  font-size: 0.93em;
+}
+li.recipe-taskref .ref-arrow {
+  flex-shrink: 0;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: #7c3aed; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.72em; margin-top: 1px;
+}
+li.recipe-taskref .ref-body {
+  flex: 1; display: flex; flex-direction: column; gap: 3px;
+}
+li.recipe-taskref .ref-label {
+  font-weight: 700; color: #4c1d95; font-size: 0.97em;
+}
+li.recipe-taskref .ref-from {
+  font-size: 0.80em; color: #6d28d9;
+  display: flex; align-items: center; gap: 5px;
+}
+li.recipe-taskref .ref-qty {
+  font-size: 0.82em; font-weight: 700;
+  background: #7c3aed; color: #fff;
+  padding: 2px 8px; border-radius: 20px;
+  white-space: nowrap; margin-left: auto; align-self: flex-start;
+}
+
 @media print {
   #sidebar, .header-right, .output-actions, .tab-bar, .scale-notice, .no-print { display: none !important; }
   #main { padding: 0; margin-left: 0; }
@@ -1264,6 +1300,7 @@ li.recipe-ingredient .ing-qty  { color: var(--ink); font-size: 0.92em; font-weig
         <div class="input-toggle-row">
           <button class="btn btn-primary" onclick="showInputPanel('instruction')"><i class="fa-solid fa-list-check"></i> Add Instruction</button>
           <button class="btn btn-success" onclick="showInputPanel('ingredient')"><i class="fa-solid fa-bowl-food"></i> Add Ingredient</button>
+          <button class="btn" style="background:#7c3aed;color:#fff;" onclick="showInputPanel('taskref')"><i class="fa-solid fa-link"></i> Link Task</button>
         </div>
 
         <div class="input-panel" id="instruction-panel">
@@ -1305,6 +1342,26 @@ li.recipe-ingredient .ing-qty  { color: var(--ink); font-size: 0.92em; font-weig
             <div class="voice-status" id="voice-ing-status"></div>
             <div class="voice-transcript-preview" id="voice-ing-preview"></div>
             <div id="voice-ing-added"></div>
+          </div>
+        </div>
+
+        <div class="input-panel" id="taskref-panel">
+          <h4><i class="fa-solid fa-link" style="color:#7c3aed;"></i> Link from Previous Task</h4>
+          <p style="font-size:0.78em;color:var(--ink-light);margin-bottom:10px;">Reference something prepared in an earlier task — it won't be added to the grocery list.</p>
+          <div class="form-row" style="flex-wrap:wrap;gap:8px;">
+            <select id="taskref-task-select" style="flex:1;min-width:140px;">
+              <option value="">— Select a task —</option>
+            </select>
+            <input type="text" id="taskref-label" placeholder="Label (e.g. Marinade, Batter…)" style="flex:2;min-width:160px;">
+          </div>
+          <div class="form-row" style="margin-top:8px;">
+            <input type="number" id="taskref-qty" placeholder="Qty (optional)" style="max-width:110px;">
+            <select id="taskref-unit">
+              <option value="">— unit —</option>
+            </select>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+            <button class="btn btn-sm" style="background:#7c3aed;color:#fff;" onclick="submitTaskRef()"><i class="fa-solid fa-circle-plus"></i> Add Reference</button>
           </div>
         </div>
 
@@ -1449,7 +1506,8 @@ var MEASUREMENT_TYPES = {
   'OZ':     { name: 'Oz',         color: '#065f46' },
   'ML':     { name: 'ml',         color: '#1e3a8a' },
   'Liters': { name: 'Liters',     color: '#831843' },
-  'Pinch':  { name: 'Pinch',      color: '#6b7280' }
+  'Pinch':  { name: 'Pinch',      color: '#6b7280' },
+  'PCT':    { name: '%',          color: '#7c3aed' }
 };
 
 var TASK_STYLES = ['task-blue','task-green','task-orange','task-purple','task-teal'];
@@ -1957,7 +2015,20 @@ function generateRecipeCard() {
     out += '<div class="task-block-body"><ul>';
 
     task.items.forEach(function(item) {
-      if (item.type === 'instruction') {
+      if (item.type === 'taskref') {
+        var mt = item.unitKey ? (MEASUREMENT_TYPES[item.unitKey] || { name: item.unitKey, color: '#7c3aed' }) : null;
+        var qtyStr = item.qty
+          ? (item.qty + ' ' + (item.unitKey === 'PCT' ? '%' : mt ? mt.name : ''))
+          : 'All';
+        out += '<li class="recipe-taskref">';
+        out += '<span class="ref-arrow"><i class="fa-solid fa-arrow-turn-down"></i></span>';
+        out += '<span class="ref-body">';
+        out += '<span class="ref-label">' + escapeHtml(item.label || item.fromTaskName) + '</span>';
+        out += '<span class="ref-from"><i class="fa-solid fa-link" style="font-size:0.8em;"></i> from: <strong>' + escapeHtml(item.fromTaskName) + '</strong></span>';
+        out += '</span>';
+        out += '<span class="ref-qty">' + escapeHtml(qtyStr) + '</span>';
+        out += '</li>';
+      } else if (item.type === 'instruction') {
         out += '<li class="recipe-instruction"><i class="fa-solid fa-chevron-right"></i><span>' + escapeHtml(item.text);
         if (item.imageUrl) out += '<br><img src="' + escapeHtml(item.imageUrl) + '" class="instruction-image" alt="">';
         out += '</span></li>';
@@ -1990,6 +2061,66 @@ function generateAndDisplay() {
 function showInputPanel(type) {
   document.getElementById('instruction-panel').classList.toggle('visible', type === 'instruction');
   document.getElementById('ingredient-panel').classList.toggle('visible', type === 'ingredient');
+  document.getElementById('taskref-panel').classList.toggle('visible', type === 'taskref');
+  if (type === 'taskref') populateTaskRefDropdown();
+}
+
+function populateTaskRefDropdown() {
+  var sel = document.getElementById('taskref-task-select');
+  var unitSel = document.getElementById('taskref-unit');
+  // Tasks before current
+  sel.innerHTML = '<option value="">— Select a task —</option>';
+  var currentIdx = currentRecipe.tasks.findIndex(function(t) { return t.id === currentTaskId; });
+  currentRecipe.tasks.forEach(function(t, idx) {
+    if (idx < currentIdx) {
+      var opt = document.createElement('option');
+      opt.value = t.id;
+      opt.textContent = t.name;
+      sel.appendChild(opt);
+    }
+  });
+  // Units including PCT
+  unitSel.innerHTML = '<option value="">— unit —</option>';
+  Object.keys(MEASUREMENT_TYPES).forEach(function(k) {
+    var opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = k === 'PCT' ? '% (percentage)' : MEASUREMENT_TYPES[k].name;
+    unitSel.appendChild(opt);
+  });
+}
+
+function submitTaskRef() {
+  if (!currentTaskId) { toast('Select a task first.'); return; }
+  var taskId = parseInt(document.getElementById('taskref-task-select').value);
+  var label  = document.getElementById('taskref-label').value.trim();
+  var qty    = parseFloat(document.getElementById('taskref-qty').value) || null;
+  var unit   = document.getElementById('taskref-unit').value || null;
+  if (!taskId) { toast('Please select a source task.'); return; }
+  var fromTask = currentRecipe.tasks.find(function(t) { return t.id === taskId; });
+  if (!fromTask) { toast('Task not found.'); return; }
+  var refLabel = label || fromTask.name;
+  addTaskRef(taskId, fromTask.name, refLabel, qty, unit);
+  // Reset
+  document.getElementById('taskref-task-select').value = '';
+  document.getElementById('taskref-label').value = '';
+  document.getElementById('taskref-qty').value = '';
+  document.getElementById('taskref-unit').value = '';
+}
+
+function addTaskRef(fromTaskId, fromTaskName, label, qty, unitKey) {
+  var task = getCurrentTask();
+  if (!task) return;
+  task.items.push({
+    id: itemIdCounter++,
+    type: 'taskref',
+    fromTaskId: fromTaskId,
+    fromTaskName: fromTaskName,
+    label: label,
+    qty: qty || null,
+    unitKey: unitKey || null
+  });
+  renderActiveTaskItems(); generateAndDisplay();
+  autoSave();
 }
 
 function submitInstruction() {
