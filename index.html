@@ -175,6 +175,18 @@ body {
 .task-item .t-del { color: #f08080; opacity: 0.55; cursor: pointer; font-size: 0.78em; }
 .task-item .t-del:hover { opacity: 1; }
 
+/* Task items inside the light-background tasks card in Edit Recipe tab */
+#tasks-card .task-item {
+  background: var(--cream);
+  border: 1.5px solid var(--border);
+  color: var(--ink);
+}
+#tasks-card .task-item:hover { background: #ede8d8; }
+#tasks-card .task-item.active { background: rgba(217,97,76,0.12); border-color: var(--p-terracotta); color: var(--p-navy); }
+#tasks-card .task-item .drag-handle { color: var(--border); }
+#tasks-card .task-item .t-edit { color: var(--p-navy); }
+#tasks-card .task-item .t-del { color: var(--red-light); }
+
 .saved-recipes-list { }
 .saved-item {
   display: flex;
@@ -912,29 +924,29 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
     </button>
   </div>
 
-  <!-- TASKS PANEL (resizable top) -->
-  <div class="sidebar-panel" id="tasks-panel">
-    <div class="sidebar-section">
-      <div class="sidebar-section-title">Current Recipe &mdash; Tasks</div>
-      <button class="sidebar-btn green" id="new-task-btn">
-        <i class="fa-solid fa-square-plus"></i> New Task
-      </button>
-    </div>
-    <div class="sidebar-panel-inner">
-      <div class="task-list" id="tasks-container"></div>
-    </div>
+  <!-- TOP ACTION BUTTONS -->
+  <div class="sidebar-section" style="padding-top:14px;padding-bottom:10px;">
+    <button class="sidebar-btn" onclick="resetEditorState()">
+      <i class="fa-solid fa-file-circle-plus"></i> New Recipe
+    </button>
+    <button class="sidebar-btn purple" onclick="openAiImportModal()">
+      <i class="fa-solid fa-wand-magic-sparkles"></i> Import Recipe
+    </button>
+    <button class="sidebar-btn gold" onclick="openGroceryModal()">
+      <i class="fa-solid fa-basket-shopping"></i> Multi-Recipe Grocery List
+    </button>
   </div>
 
-  <!-- DRAG DIVIDER -->
-  <div class="sidebar-drag-divider" id="sidebar-divider"></div>
+  <!-- DIVIDER -->
+  <div style="height:1px;background:rgba(240,201,110,0.12);margin:0 14px 0;"></div>
 
-  <!-- SAVED RECIPES PANEL (resizable bottom, fills remaining) -->
+  <!-- SAVED RECIPES PANEL (fills all remaining space) -->
   <div class="sidebar-panel" id="recipes-panel" style="flex:1;">
-    <div class="sidebar-section">
+    <div class="sidebar-section" style="padding-top:14px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
         <div class="sidebar-section-title" style="margin-bottom:0;">Saved Recipes</div>
         <div style="display:flex;gap:4px;">
-          <button onclick="downloadRecipeAsJSON()" title="Download current recipe as JSON" style="background:none;border:none;color:rgba(240,201,110,0.50);cursor:pointer;font-size:0.82em;padding:2px 5px;transition:color 0.15s;" onmouseover="this.style.color='#f0c96e'" onmouseout="this.style.color='rgba(240,201,110,0.50)'">
+          <button onclick="downloadRecipeAsJSON()" title="Download current recipe" style="background:none;border:none;color:rgba(240,201,110,0.50);cursor:pointer;font-size:0.82em;padding:2px 5px;transition:color 0.15s;" onmouseover="this.style.color='#f0c96e'" onmouseout="this.style.color='rgba(240,201,110,0.50)'">
             <i class="fa-solid fa-download"></i>
           </button>
           <button onclick="createFolder()" title="New folder" style="background:none;border:none;color:rgba(240,201,110,0.50);cursor:pointer;font-size:0.82em;padding:2px 5px;transition:color 0.15s;" onmouseover="this.style.color='#f0c96e'" onmouseout="this.style.color='rgba(240,201,110,0.50)'">
@@ -944,24 +956,9 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
       </div>
     </div>
     <div class="sidebar-panel-inner">
-      <!-- Folders live here, above the unfoldered recipes -->
       <div id="folders-container"></div>
-      <!-- All saved recipes (unfoldered recipes shown below folders) -->
       <div class="saved-recipes-list" id="saved-recipes-container"></div>
     </div>
-  </div>
-
-  <!-- PINNED FOOTER — always visible -->
-  <div class="sidebar-footer">
-    <button class="sidebar-btn gold" onclick="openGroceryModal()">
-      <i class="fa-solid fa-basket-shopping"></i> Multi-Recipe Grocery List
-    </button>
-    <button class="sidebar-btn" onclick="resetEditorState()">
-      <i class="fa-solid fa-file-circle-plus"></i> New Recipe
-    </button>
-    <button class="sidebar-btn purple" onclick="openAiImportModal()">
-      <i class="fa-solid fa-wand-magic-sparkles"></i> Import Recipe
-    </button>
   </div>
 </aside>
 
@@ -1017,6 +1014,21 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
           <label for="serving-size">Scale To (serves)</label>
           <input type="number" id="serving-size" placeholder="e.g. 8" oninput="generateAndDisplay()">
         </div>
+      </div>
+    </div>
+
+    <!-- TASKS -->
+    <div class="card" id="tasks-card">
+      <div class="card-header">
+        <h2><i class="fa-solid fa-layer-group"></i> Tasks</h2>
+        <button class="btn btn-success btn-sm" id="new-task-btn">
+          <i class="fa-solid fa-square-plus"></i> New Task
+        </button>
+      </div>
+      <div class="card-body" style="padding:12px 16px;">
+        <div class="task-list" id="tasks-container" style="display:flex;flex-direction:column;gap:5px;min-height:36px;">
+        </div>
+        <p class="empty-state" id="tasks-empty-state" style="margin:0;padding:10px 0;">No tasks yet — click New Task to start.</p>
       </div>
     </div>
 
@@ -1486,7 +1498,8 @@ function updateItemData(itemId, field, value) {
 
 // ===================== UI RENDERING =====================
 function updateTaskListUI() {
-  var container = document.getElementById('tasks-container');
+  var container  = document.getElementById('tasks-container');
+  var emptyState = document.getElementById('tasks-empty-state');
   container.innerHTML = '';
   currentRecipe.tasks.forEach(function(task) {
     var div = document.createElement('div');
@@ -1504,6 +1517,7 @@ function updateTaskListUI() {
     };
     container.appendChild(div);
   });
+  if (emptyState) emptyState.style.display = currentRecipe.tasks.length === 0 ? 'block' : 'none';
   var ct = currentRecipe.tasks.find(function(t) { return t.id === currentTaskId; });
   document.getElementById('current-task-name').textContent = ct ? ct.name : 'No Task Selected';
 }
@@ -2676,71 +2690,7 @@ function importFromImage() {
 
 // ===================== SIDEBAR DRAG RESIZE =====================
 function initSidebarResize() {
-  var divider    = document.getElementById('sidebar-divider');
-  var topPanel   = document.getElementById('tasks-panel');
-  var sidebar    = document.getElementById('sidebar');
-  var isDragging = false;
-  var startY     = 0;
-  var startTopH  = 0;
-
-  // Set initial position to 2/3 down the sidebar
-  var initialH = Math.round(sidebar.offsetHeight * 0.50);
-  topPanel.style.flex   = 'none';
-  topPanel.style.height = initialH + 'px';
-
-  divider.addEventListener('mousedown', function(e) {
-    isDragging  = true;
-    startY      = e.clientY;
-    startTopH   = topPanel.offsetHeight;
-    divider.classList.add('dragging');
-    document.body.style.cursor   = 'ns-resize';
-    document.body.style.userSelect = 'none';
-    e.preventDefault();
-  });
-
-  document.addEventListener('mousemove', function(e) {
-    if (!isDragging) return;
-    var delta      = e.clientY - startY;
-    var sidebarH   = sidebar.offsetHeight;
-    // Brand height + footer height + divider = ~120px reserved
-    var minTop     = 80;
-    var maxTop     = sidebarH - 120;
-    var newTopH    = Math.min(maxTop, Math.max(minTop, startTopH + delta));
-    topPanel.style.flex   = 'none';
-    topPanel.style.height = newTopH + 'px';
-  });
-
-  document.addEventListener('mouseup', function() {
-    if (!isDragging) return;
-    isDragging = false;
-    divider.classList.remove('dragging');
-    document.body.style.cursor    = '';
-    document.body.style.userSelect = '';
-  });
-
-  // Touch support
-  divider.addEventListener('touchstart', function(e) {
-    isDragging = true;
-    startY     = e.touches[0].clientY;
-    startTopH  = topPanel.offsetHeight;
-    e.preventDefault();
-  }, { passive: false });
-
-  document.addEventListener('touchmove', function(e) {
-    if (!isDragging) return;
-    var delta    = e.touches[0].clientY - startY;
-    var sidebarH = sidebar.offsetHeight;
-    var minTop   = 80;
-    var maxTop   = sidebarH - 120;
-    var newTopH  = Math.min(maxTop, Math.max(minTop, startTopH + delta));
-    topPanel.style.flex   = 'none';
-    topPanel.style.height = newTopH + 'px';
-    e.preventDefault();
-  }, { passive: false });
-
-  document.addEventListener('touchend', function() {
-    isDragging = false;
-  });
+  // Tasks panel removed from sidebar — no resize needed
 }
 
 // ===================== TABS =====================
