@@ -249,7 +249,7 @@ body {
 }
 
 /* ===================== CARD ===================== */
-.card { background: var(--card); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); overflow: hidden; }
+.card { background: var(--card); border-radius: var(--radius-lg); box-shadow: 0 2px 12px rgba(46,58,82,0.12), 0 0 0 1px rgba(46,58,82,0.07); overflow: hidden; }
 .card-header {
   display: flex;
   align-items: center;
@@ -258,7 +258,7 @@ body {
   border-bottom: 1px solid var(--border);
   gap: 12px;
   flex-wrap: wrap;
-  background: var(--cream);
+  background: #f7f5f0;
 }
 .card-header h2 {
   font-family: 'Inter', system-ui, sans-serif;
@@ -323,10 +323,10 @@ body {
 .btn-primary { background: var(--sage-deep); color: #fff; }
 .btn-success { background: var(--sage-mid);  color: #fff; }
 .btn-warn    { background: #e67e22; color: #fff; }
-.btn-muted   { background: var(--sage-light); color: var(--teal-darkest); }
+.btn-muted   { background: #edeae2; color: var(--ink); }
 .btn-danger  { background: var(--red); color: #fff; }
 .btn-gold    { background: var(--sage-mid); color: #fff; }
-.btn-outline { background: transparent; color: var(--ink); border: 1.5px solid var(--border); }
+.btn-outline { background: transparent; color: var(--ink); border: 1.5px solid #a09e96; }
 .btn-outline:hover { background: var(--cream); }
 .btn-sm { padding: 6px 11px; font-size: 0.74em; }
 
@@ -634,7 +634,7 @@ li.recipe-ingredient .ing-qty  { color: var(--ink); font-size: 0.92em; font-weig
 .tab-bar {
   display: flex;
   gap: 0;
-  background: var(--card);
+  background: var(--p-navy);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   box-shadow: var(--shadow-md);
   overflow: hidden;
@@ -652,16 +652,16 @@ li.recipe-ingredient .ing-qty  { color: var(--ink); font-size: 0.92em; font-weig
   font-weight: 700;
   cursor: pointer;
   border: none;
-  background: var(--cream);
-  color: var(--ink-light);
+  background: transparent;
+  color: rgba(255,255,255,0.55);
   border-bottom: 3px solid transparent;
   transition: color 0.15s, background 0.15s, border-color 0.15s;
   letter-spacing: 0.2px;
 }
-.tab-btn:hover { background: #fff; color: var(--ink); }
+.tab-btn:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.85); }
 .tab-btn.active {
-  background: #fff;
-  color: var(--p-navy);
+  background: rgba(255,255,255,0.12);
+  color: #ffffff;
   border-bottom-color: var(--p-terracotta);
 }
 .tab-pane { display: none; flex-direction: column; gap: 18px; margin-top: 20px; }
