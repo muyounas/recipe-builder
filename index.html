@@ -913,6 +913,40 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
   #main { transition: margin-left 0.25s ease; }
 }
 
+
+/* ── MOBILE: full sidebar collapse after recipe select ─────────────────────── */
+@media (max-width: 900px) {
+  /* Sidebar in "recipe selected" state — shrunk to just a thin peek bar */
+  #sidebar.mobile-recipe-open .sidebar-brand,
+  #sidebar.mobile-recipe-open #sidebar-user-row,
+  #sidebar.mobile-recipe-open .sidebar-section:not(#recipes-peek-bar),
+  #sidebar.mobile-recipe-open #recipes-panel {
+    display: none !important;
+  }
+  #sidebar.mobile-recipe-open {
+    max-height: none;
+    height: auto;
+  }
+  /* Peek bar — shown only when recipe is open on mobile */
+  #recipes-peek-bar {
+    display: none;
+  }
+  #sidebar.mobile-recipe-open #recipes-peek-bar {
+    display: flex !important;
+  }
+
+  /* Hide tabs and main content until recipe is selected */
+  #main.mobile-empty {
+    display: none;
+  }
+}
+
+/* Desktop: main always visible */
+@media (min-width: 901px) {
+  #main.mobile-empty { display: flex !important; }
+  #recipes-peek-bar { display: none !important; }
+}
+
 @media print {
   #sidebar, .header-right, .output-actions, .tab-bar, .scale-notice, .no-print { display: none !important; }
   #main { padding: 0; margin-left: 0; }
@@ -1063,6 +1097,15 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
 
   <!-- DIVIDER -->
   <div style="height:1px;background:rgba(240,201,110,0.12);margin:0 14px 0;"></div>
+
+  <!-- PEEK BAR — only visible on mobile after a recipe is selected -->
+  <div class="sidebar-section" id="recipes-peek-bar" style="display:none;padding:10px 14px;flex-direction:row;align-items:center;justify-content:space-between;cursor:pointer;" onclick="mobileShowSidebar()">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <i class="fa-solid fa-bars" style="color:#f0c96e;font-size:0.85em;"></i>
+      <span style="font-size:0.75em;color:rgba(240,201,110,0.80);font-weight:700;letter-spacing:1px;text-transform:uppercase;">My Recipes</span>
+    </div>
+    <i class="fa-solid fa-chevron-down" style="font-size:0.65em;color:rgba(240,201,110,0.55);"></i>
+  </div>
 
   <!-- SAVED RECIPES PANEL (fills all remaining space) -->
   <div class="sidebar-panel" id="recipes-panel" style="flex:1;">
@@ -1525,8 +1568,16 @@ function loadRecipe(recipeId) {
   syncRecipeImageUI(currentRecipe.image || '');
   updateTaskListUI(); renderActiveTaskItems(); generateAndDisplay(); updateSavedRecipesUI();
   setAutoSaveStatus('saved');
-  // Auto-collapse the recipes list after selecting so the content is immediately visible
-  if (recipesListVisible) toggleRecipesList();
+  if (isMobile()) {
+    // Collapse the entire sidebar down to just the peek bar, show main content
+    document.getElementById('sidebar').classList.add('mobile-recipe-open');
+    document.getElementById('main').classList.remove('mobile-empty');
+    // Ensure recipes list state is tracked as collapsed
+    recipesListVisible = true; // reset so next toggle works correctly
+  } else {
+    // Desktop: just collapse the recipes list
+    if (recipesListVisible) toggleRecipesList();
+  }
   switchTab('card');
 }
 
@@ -1542,6 +1593,11 @@ function resetEditorState(targetTab) {
   syncRecipeImageUI('');
   setAutoSaveStatus('saved');
   updateTaskListUI(); renderActiveTaskItems(); generateAndDisplay(); updateSavedRecipesUI();
+  // On mobile: restore full sidebar when New Recipe is explicitly pressed
+  if (isMobile() && !targetTab) {
+    document.getElementById('sidebar').classList.remove('mobile-recipe-open');
+    document.getElementById('main').classList.remove('mobile-empty');
+  }
   switchTab(targetTab || 'edit');
 }
 
@@ -2881,6 +2937,14 @@ function toggleRecipesList() {
   }
 }
 
+// Tap the peek bar on mobile to expand the full sidebar again
+function mobileShowSidebar() {
+  document.getElementById('sidebar').classList.remove('mobile-recipe-open');
+  document.getElementById('main').classList.add('mobile-empty');
+  // Make sure recipes list is visible
+  if (!recipesListVisible) toggleRecipesList();
+}
+
 // ===================== RECIPE IMAGE =====================
 function syncRecipeImageUI(url) {
   var urlInput = document.getElementById('recipe-image-url');
@@ -3148,17 +3212,6 @@ function deleteSavedRecipe(recipeId) {
     }
   });
 }
-
-// ===================== ONE-TIME BOOT AFTER LOGIN =====================
-function onUserReady(user) {
-  hideLoginScreen(user);
-  loadAllRecipes().then(function() {
-    resetEditorState('card');
-    if (!recipesListVisible) toggleRecipesList();
-  });
-}
-
-
 
 // ===================== VOICE INPUT =====================
 var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -3777,12 +3830,38 @@ function renderFolders() {
 
 // bootApp must live at script scope — Supabase may fire onAuthStateChange
 // before DOMContentLoaded, so it must be available immediately
+function onUserReady(user) {
+  hideLoginScreen(user);
+  loadAllRecipes().then(function() {
+    if (isMobile()) {
+      // Mobile: show full sidebar with recipe list, hide main until user picks a recipe
+      resetEditorState('card');
+      document.getElementById('main').classList.add('mobile-empty');
+      if (!recipesListVisible) toggleRecipesList();
+    } else {
+      // Desktop: load first recipe or reset as before
+      if (savedRecipes.length > 0) loadRecipe(savedRecipes[0].id);
+      else resetEditorState();
+    }
+  });
+}
+
 function bootApp(user) {
   hideLoginScreen(user);
   loadAllRecipes().then(function() {
-    resetEditorState('card');
-    if (!recipesListVisible) toggleRecipesList();
+    if (isMobile()) {
+      resetEditorState('card');
+      document.getElementById('main').classList.add('mobile-empty');
+      if (!recipesListVisible) toggleRecipesList();
+    } else {
+      if (savedRecipes.length > 0) loadRecipe(savedRecipes[0].id);
+      else resetEditorState();
+    }
   });
+}
+
+function isMobile() {
+  return window.innerWidth <= 900;
 }
 
 document.addEventListener('DOMContentLoaded', function() {
