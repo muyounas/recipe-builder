@@ -1487,17 +1487,17 @@ var currentUser = null;
 var isAuthMode  = 'signin';
 
 var MEASUREMENT_TYPES = {
-  'Tbs':    { name: 'Tablespoon', color: '#1A6B3D' },
-  'Tsp':    { name: 'Teaspoon',   color: '#A31F1F' },
-  'Cup':    { name: 'Cup',        color: '#10408A' },
-  'Units':  { name: 'Units',      color: '#5D4D32' },
-  'KG':     { name: 'KG',         color: '#7c3aed' },
-  'GRAMS':  { name: 'Grams',      color: '#0891b2' },
-  'LBS':    { name: 'Lbs',        color: '#92400e' },
-  'OZ':     { name: 'Oz',         color: '#065f46' },
-  'ML':     { name: 'ml',         color: '#1e3a8a' },
-  'Liters': { name: 'Liters',     color: '#831843' },
-  'Pinch':  { name: 'Pinch',      color: '#6b7280' }
+  'Tbs':    { name: 'TBS',   color: '#1A6B3D' },
+  'Tsp':    { name: 'TSP',   color: '#A31F1F' },
+  'Cup':    { name: 'CUP',   color: '#10408A' },
+  'Units':  { name: 'PCS',   color: '#5D4D32' },
+  'KG':     { name: 'KG',    color: '#7c3aed' },
+  'GRAMS':  { name: 'G',     color: '#0891b2' },
+  'LBS':    { name: 'LBS',   color: '#92400e' },
+  'OZ':     { name: 'OZ',    color: '#065f46' },
+  'ML':     { name: 'ML',    color: '#1e3a8a' },
+  'Liters': { name: 'L',     color: '#831843' },
+  'Pinch':  { name: 'PINCH', color: '#6b7280' }
 };
 
 var TASK_STYLES = ['task-blue','task-green','task-orange','task-purple','task-teal'];
@@ -2017,16 +2017,14 @@ function generateRecipeCard() {
         var emoji = getIngredientEmoji(item.ingredient);
         var unitAbbr = getUnitAbbr(item.unitKey);
         out += '<li class="recipe-ingredient">';
-        // Left icon: emoji if we have one, coloured unit circle if not
+        // Left icon: emoji if we have one, nothing if not
         if (emoji) {
           out += '<span class="ing-icon is-emoji">' + emoji + '</span>';
-        } else {
-          out += '<span class="ing-icon is-unit" style="background:' + mt.color + ';">' + unitAbbr + '</span>';
         }
         // Middle: ingredient name
         out += '<span class="ing-name">' + escapeHtml(item.ingredient) + '</span>';
-        // Right: qty + unit name — plain text, no pill/oval
-        out += '<span class="ing-qty">' + qty + ' <span style="color:' + mt.color + ';font-weight:700;">' + escapeHtml(mt.name) + '</span></span>';
+        // Right: qty + unit — coloured, caps, abbreviated
+        out += '<span class="ing-qty"><span style="color:' + mt.color + ';font-weight:800;letter-spacing:0.5px;">' + qty + ' ' + escapeHtml(mt.name) + '</span></span>';
         out += '</li>';
       }
     });
