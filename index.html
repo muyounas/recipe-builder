@@ -1532,7 +1532,7 @@ function loadRecipe(recipeId) {
 
 // deleteSavedRecipe handled by cloud function below
 
-function resetEditorState() {
+function resetEditorState(targetTab) {
   clearTimeout(autoSaveTimer);
   currentRecipe = { id: Date.now(), title: 'Untitled Recipe', tasks: [], yield: null, servingSize: null };
   currentTaskId = null; taskIdCounter = 1; itemIdCounter = 1;
@@ -1542,7 +1542,7 @@ function resetEditorState() {
   syncRecipeImageUI('');
   setAutoSaveStatus('saved');
   updateTaskListUI(); renderActiveTaskItems(); generateAndDisplay(); updateSavedRecipesUI();
-  switchTab('edit');
+  switchTab(targetTab || 'edit');
 }
 
 // ===================== TASK MANAGEMENT =====================
@@ -3153,8 +3153,8 @@ function deleteSavedRecipe(recipeId) {
 function onUserReady(user) {
   hideLoginScreen(user);
   loadAllRecipes().then(function() {
-    if (savedRecipes.length > 0) loadRecipe(savedRecipes[0].id);
-    else resetEditorState();
+    resetEditorState('card');
+    if (!recipesListVisible) toggleRecipesList();
   });
 }
 
@@ -3780,8 +3780,8 @@ function renderFolders() {
 function bootApp(user) {
   hideLoginScreen(user);
   loadAllRecipes().then(function() {
-    if (savedRecipes.length > 0) loadRecipe(savedRecipes[0].id);
-    else resetEditorState();
+    resetEditorState('card');
+    if (!recipesListVisible) toggleRecipesList();
   });
 }
 
