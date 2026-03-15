@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 :root {
   /* Palette: off-white, terracotta, navy, teal-green, warm gold */
@@ -44,7 +44,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: 'Verdana', 'Atlas Uno', Geneva, Tahoma, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   background: var(--bg);
   color: var(--ink);
   min-height: 100vh;
@@ -72,7 +72,7 @@ body {
   border-bottom: 1px solid rgba(240,201,110,0.18);
 }
 .sidebar-brand h1 {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 1.35em;
   font-weight: 900;
   color: #fff;
@@ -225,7 +225,7 @@ body {
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
   margin-bottom: 6px;
-  font-family: 'Verdana', Geneva, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   text-align: left;
 }
 .sidebar-btn:hover { background: rgba(240,201,110,0.16); border-color: rgba(240,201,110,0.32); }
@@ -261,7 +261,7 @@ body {
   background: var(--cream);
 }
 .card-header h2 {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 1.02em;
   font-weight: 700;
   color: var(--ink);
@@ -287,14 +287,14 @@ body {
   border: 1.5px solid var(--border);
   border-radius: 8px;
   font-size: 0.88em;
-  font-family: 'Verdana', Geneva, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   color: var(--ink);
   background: var(--cream);
   transition: border-color 0.15s;
   outline: none;
 }
 .field-group input:focus { border-color: var(--sage-deep); background: #fff; }
-.field-group input#recipe-title { font-family: 'Playfair Display', serif; font-size: 1.02em; font-weight: 700; }
+.field-group input#recipe-title { font-family: 'Inter', system-ui, sans-serif; font-size: 1.02em; font-weight: 700; }
 
 .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .btn-group    { display: flex; gap: 7px; flex-wrap: wrap; }
@@ -314,7 +314,7 @@ body {
 .btn {
   display: inline-flex; align-items: center; gap: 6px;
   border: none; border-radius: 8px; padding: 9px 14px;
-  font-family: 'Verdana', Geneva, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 0.78em; font-weight: 700;
   cursor: pointer; transition: opacity 0.15s, transform 0.1s; white-space: nowrap;
 }
@@ -340,7 +340,7 @@ body {
 }
 .input-panel.visible { display: block; }
 .input-panel h4 {
-  font-family: 'Playfair Display', serif; font-size: 0.90em;
+  font-family: 'Inter', system-ui, sans-serif; font-size: 0.90em;
   margin-bottom: 11px; color: var(--ink);
   display: flex; align-items: center; gap: 7px;
 }
@@ -350,7 +350,7 @@ body {
 .form-row input, .form-row select, .form-row textarea {
   flex: 1; padding: 8px 11px;
   border: 1.5px solid var(--border); border-radius: 8px;
-  font-family: 'Verdana', Geneva, sans-serif; font-size: 0.83em;
+  font-family: 'Inter', system-ui, sans-serif; font-size: 0.83em;
   background: #fff; color: var(--ink); outline: none; transition: border-color 0.15s;
 }
 .form-row input:focus, .form-row select:focus, .form-row textarea:focus { border-color: var(--sage-deep); }
@@ -361,7 +361,7 @@ body {
 .divider { border: none; border-top: 1px solid var(--border); margin: 2px 0; }
 
 .items-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.items-header h4 { font-family: 'Playfair Display', serif; font-size: 0.88em; color: var(--ink); }
+.items-header h4 { font-family: 'Inter', system-ui, sans-serif; font-size: 0.88em; color: var(--ink); }
 .items-header small { color: var(--ink-light); font-size: 0.74em; }
 
 #active-task-items { display: flex; flex-direction: column; gap: 6px; min-height: 36px; }
@@ -374,7 +374,7 @@ body {
 .editable-item input, .editable-item textarea, .editable-item select {
   flex: 1; padding: 6px 8px;
   border: 1px solid var(--border); border-radius: 6px;
-  font-family: 'Verdana', Geneva, sans-serif; font-size: 0.80em;
+  font-family: 'Inter', system-ui, sans-serif; font-size: 0.80em;
   background: #fff; outline: none;
 }
 .editable-item input:focus, .editable-item textarea:focus, .editable-item select:focus { border-color: var(--sage-deep); }
@@ -390,7 +390,7 @@ body {
 
 #output-display {
   padding: 0 0 24px;
-  font-family: 'Verdana', Geneva, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   min-height: 100px;
 }
 
@@ -399,13 +399,13 @@ body {
   padding: 24px 26px 20px;
 }
 #output-display .recipe-title-display {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 2.4em;
-  font-weight: 900;
+  font-weight: 800;
   color: var(--ink);
   line-height: 1.15;
   margin-bottom: 10px;
-  letter-spacing: -0.5px;
+  letter-spacing: -1px;
 }
 #output-display .recipe-yield-display {
   font-size: 0.95em;
@@ -430,7 +430,7 @@ body {
   overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.07); border: 1.5px solid #e0e0e0;
 }
 .task-block-header {
-  padding: 13px 18px; font-family: 'Playfair Display', serif;
+  padding: 13px 18px; font-family: 'Inter', system-ui, sans-serif;
   font-size: 1.15em; font-weight: 800; display: flex; align-items: center; gap: 10px;
 }
 .task-block-body { padding: 14px 18px; background: #fff; }
@@ -484,13 +484,13 @@ li.recipe-ingredient .ing-qty  { color: var(--ink); font-size: 0.92em; font-weig
   padding: 18px 22px 14px; border-bottom: 1px solid var(--border);
   background: var(--cream);
 }
-.dialog-header h3 { font-family: 'Playfair Display', serif; font-size: 1.05em; font-weight: 700; color: var(--ink); }
+.dialog-header h3 { font-family: 'Inter', system-ui, sans-serif; font-size: 1.05em; font-weight: 700; color: var(--ink); }
 .dialog-body { padding: 18px 22px; }
 .dialog-body p { font-size: 0.88em; color: var(--ink); line-height: 1.5; margin-bottom: 12px; }
 .dialog-body input {
   width: 100%; padding: 9px 12px;
   border: 1.5px solid var(--border); border-radius: 8px;
-  font-family: 'Verdana', Geneva, sans-serif; font-size: 0.88em;
+  font-family: 'Inter', system-ui, sans-serif; font-size: 0.88em;
   color: var(--ink); outline: none;
 }
 .dialog-body input:focus { border-color: var(--sage-deep); }
@@ -514,7 +514,7 @@ li.recipe-ingredient .ing-qty  { color: var(--ink); font-size: 0.92em; font-weig
   display: flex; align-items: center; justify-content: space-between;
   background: var(--cream);
 }
-.modal-header h2 { font-family: 'Playfair Display', serif; font-size: 1.15em; font-weight: 700; }
+.modal-header h2 { font-family: 'Inter', system-ui, sans-serif; font-size: 1.15em; font-weight: 700; }
 .modal-close { background: none; border: none; font-size: 1.1em; cursor: pointer; color: var(--ink-light); padding: 4px; }
 .modal-close:hover { color: var(--ink); }
 .modal-body { padding: 18px 22px; overflow-y: auto; flex: 1; }
@@ -542,14 +542,14 @@ li.recipe-ingredient .ing-qty  { color: var(--ink); font-size: 0.92em; font-weig
 .grocery-checkbox-item .gcb-serving strong { color: var(--p-navy); }
 
 #grocery-list-output { font-size: 0.86em; }
-#grocery-list-output h3 { font-family: 'Playfair Display', serif; font-size: 1.08em; margin-bottom: 11px; color: var(--ink); }
+#grocery-list-output h3 { font-family: 'Inter', system-ui, sans-serif; font-size: 1.08em; margin-bottom: 11px; color: var(--ink); }
 #grocery-list-output ol { padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
 #grocery-list-output li { color: var(--ink); line-height: 1.4; }
 #grocery-list-output li .qty-tag { display: inline-block; background: #dceef8; border-radius: 4px; padding: 1px 6px; font-size: 0.80em; color: #2e3a52; margin-left: 6px; }
 
 /* Cost estimate output */
 #cost-estimate-output { margin-top: 18px; font-size: 0.86em; }
-#cost-estimate-output h3 { font-family: 'Playfair Display', serif; font-size: 1.08em; margin-bottom: 4px; color: var(--ink); }
+#cost-estimate-output h3 { font-family: 'Inter', system-ui, sans-serif; font-size: 1.08em; margin-bottom: 4px; color: var(--ink); }
 #cost-estimate-output .cost-source { font-size: 0.76em; color: var(--ink-light); margin-bottom: 12px; }
 .cost-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
 .cost-table th {
@@ -604,7 +604,7 @@ li.recipe-ingredient .ing-qty  { color: var(--ink); font-size: 0.92em; font-weig
 .ai-input-row input {
   flex: 1; padding: 10px 13px;
   border: 1.5px solid var(--border); border-radius: 8px;
-  font-family: 'Verdana', Geneva, sans-serif; font-size: 0.83em;
+  font-family: 'Inter', system-ui, sans-serif; font-size: 0.83em;
   color: var(--ink); background: var(--cream); outline: none;
   transition: border-color 0.15s;
 }
@@ -647,7 +647,7 @@ li.recipe-ingredient .ing-qty  { color: var(--ink); font-size: 0.92em; font-weig
   justify-content: center;
   gap: 8px;
   padding: 15px 20px;
-  font-family: 'Verdana', Geneva, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 0.83em;
   font-weight: 700;
   cursor: pointer;
@@ -684,7 +684,7 @@ li.recipe-ingredient .ing-qty  { color: var(--ink); font-size: 0.92em; font-weig
   text-align: center;
 }
 .login-logo {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 2em; font-weight: 900;
   color: var(--p-navy); line-height: 1;
   margin-bottom: 6px;
@@ -703,7 +703,7 @@ li.recipe-ingredient .ing-qty  { color: var(--ink); font-size: 0.92em; font-weig
 .login-field input {
   width: 100%; padding: 10px 13px;
   border: 1.5px solid var(--border); border-radius: 8px;
-  font-family: 'Verdana', Geneva, sans-serif; font-size: 0.88em;
+  font-family: 'Inter', system-ui, sans-serif; font-size: 0.88em;
   color: var(--ink); outline: none; transition: border-color 0.15s;
 }
 .login-field input:focus { border-color: var(--p-navy); }
@@ -711,7 +711,7 @@ li.recipe-ingredient .ing-qty  { color: var(--ink); font-size: 0.92em; font-weig
   width: 100%; padding: 11px 16px;
   border: none; border-radius: 10px;
   background: var(--p-navy); color: #fff;
-  font-family: 'Verdana', Geneva, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 0.85em; font-weight: 700;
   cursor: pointer; transition: opacity 0.15s;
   margin-bottom: 8px;
@@ -768,7 +768,7 @@ li.recipe-ingredient .ing-qty  { color: var(--ink); font-size: 0.92em; font-weig
 
 /* ===================== EDITABLE GROCERY LIST ===================== */
 .grocery-list-header { margin-bottom: 12px; }
-.grocery-list-header h3 { font-family: 'Playfair Display', serif; font-size: 1.08em; color: var(--ink); }
+.grocery-list-header h3 { font-family: 'Inter', system-ui, sans-serif; font-size: 1.08em; color: var(--ink); }
 .editable-grocery-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
 .editable-grocery-item {
   display: flex; align-items: center; gap: 8px;
@@ -994,7 +994,7 @@ li.recipe-ingredient .ing-qty  { color: var(--ink); font-size: 0.92em; font-weig
   #settings-card, #editor-card { display: none !important; }
   .card { box-shadow: none; border: none; }
   body { background: #fff; }
-  #output-display { font-family: 'Verdana', Geneva, sans-serif; }
+  #output-display { font-family: 'Inter', system-ui, sans-serif; }
 }
 
 @media (max-width: 900px) {
@@ -2265,8 +2265,8 @@ function refreshGroceryListUI(titleStr) {
   });
   html += '</ul>';
   html += '<div class="grocery-add-row">';
-  html += '<input type="text" id="new-grocery-name" placeholder="Add item..." style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Verdana,sans-serif;font-size:0.82em;outline:none;" onkeydown="if(event.key===\'Enter\')addGroceryItem()">';
-  html += '<input type="text" id="new-grocery-qty" placeholder="Qty/unit" style="width:90px;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Verdana,sans-serif;font-size:0.82em;outline:none;" onkeydown="if(event.key===\'Enter\')addGroceryItem()">';
+  html += '<input type="text" id="new-grocery-name" placeholder="Add item..." style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,system-ui,sans-serif;font-size:0.82em;outline:none;" onkeydown="if(event.key===\'Enter\')addGroceryItem()">';
+  html += '<input type="text" id="new-grocery-qty" placeholder="Qty/unit" style="width:90px;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,system-ui,sans-serif;font-size:0.82em;outline:none;" onkeydown="if(event.key===\'Enter\')addGroceryItem()">';
   html += '<button class="btn btn-success btn-sm" onclick="addGroceryItem()"><i class="fa-solid fa-plus"></i> Add</button>';
   html += '</div>';
   container.innerHTML = html;
@@ -2497,7 +2497,7 @@ function printGroceryListModal() {
   var costContent = document.getElementById('cost-estimate-output').innerHTML;
   var combined = listHtml + (costContent ? '<hr style="margin:20px 0;">' + costContent : '');
   var w = window.open('', '', 'height=700,width=860');
-  w.document.write('<html><head><title>Grocery List</title><style>body{font-family:Verdana,sans-serif;padding:28px;max-width:700px;margin:0 auto;}h2{font-size:1.4em;margin-bottom:14px;}ol{padding-left:20px;}li{margin-bottom:8px;border-bottom:1px dashed #ccc;padding-bottom:6px;line-height:1.4;}strong{font-weight:700;}table{width:100%;border-collapse:collapse;font-size:0.9em;margin-top:8px;}th{text-align:left;border-bottom:2px solid #ccc;padding:5px 6px;font-size:0.78em;text-transform:uppercase;color:#666;}th:last-child,td:last-child{text-align:right;}td{padding:6px 6px;border-bottom:1px solid #eee;}.cost-total-row td{font-weight:700;background:#f5f5f5;border-top:2px solid #ccc;}</style></head><body>' + combined + '</body></html>');
+  w.document.write('<html><head><title>Grocery List</title><style>body{font-family:Inter,system-ui,sans-serif;padding:28px;max-width:700px;margin:0 auto;}h2{font-size:1.4em;margin-bottom:14px;}ol{padding-left:20px;}li{margin-bottom:8px;border-bottom:1px dashed #ccc;padding-bottom:6px;line-height:1.4;}strong{font-weight:700;}table{width:100%;border-collapse:collapse;font-size:0.9em;margin-top:8px;}th{text-align:left;border-bottom:2px solid #ccc;padding:5px 6px;font-size:0.78em;text-transform:uppercase;color:#666;}th:last-child,td:last-child{text-align:right;}td{padding:6px 6px;border-bottom:1px solid #eee;}.cost-total-row td{font-weight:700;background:#f5f5f5;border-top:2px solid #ccc;}</style></head><body>' + combined + '</body></html>');
   w.document.close(); w.print();
 }
 
