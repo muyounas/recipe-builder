@@ -388,13 +388,40 @@ body {
 /* ===================== RECIPE OUTPUT ===================== */
 .output-actions { display: flex; gap: 7px; flex-wrap: wrap; }
 
-#output-display { padding: 22px; font-family: 'Verdana', Geneva, sans-serif; min-height: 100px; }
+#output-display {
+  padding: 0 0 24px;
+  font-family: 'Verdana', Geneva, sans-serif;
+  min-height: 100px;
+}
 
+/* Title + yield header block */
+.recipe-output-header {
+  padding: 24px 26px 20px;
+}
+#output-display .recipe-title-display {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.4em;
+  font-weight: 900;
+  color: var(--ink);
+  line-height: 1.15;
+  margin-bottom: 10px;
+  letter-spacing: -0.5px;
+}
+#output-display .recipe-yield-display {
+  font-size: 0.95em;
+  color: var(--ink-light);
+  font-weight: 500;
+  margin-bottom: 0;
+}
+#output-display .recipe-yield-display strong {
+  color: var(--p-terracotta, #d9614c);
+  font-weight: 700;
+}
 
 .scale-notice {
   background: #ede8da; border: 1px solid #cfc9b8; border-radius: 8px;
   padding: 10px 14px; font-size: 0.88em; color: #514d57;
-  margin: 0 22px 16px; display: flex; align-items: center; gap: 8px;
+  margin: 0 26px 22px; display: flex; align-items: center; gap: 8px;
 }
 
 /* Task blocks */
@@ -430,7 +457,9 @@ li.recipe-ingredient .ing-qty  { color: var(--ink); font-size: 0.92em; font-weig
 .recipe-hero-img { width: 100%; max-height: 260px; object-fit: cover; display: block; border-radius: var(--radius) var(--radius) 0 0; margin-bottom: 4px; }
 
 @media (max-width: 900px) {
-  #output-display .recipe-title-display { font-size: 1.7em; }
+  #output-display .recipe-title-display { font-size: 1.85em; }
+  .recipe-output-header { padding: 18px 16px 14px; }
+  .scale-notice { margin: 0 16px 16px; }
   .task-block { margin: 0 0 16px; }
   .scale-notice { margin: 0 0 16px; }
   .task-block-body { padding: 10px 13px; }
@@ -1903,12 +1932,14 @@ function generateRecipeCard() {
     out += '<img src="' + escapeHtml(currentRecipe.image) + '" class="recipe-hero-img" alt="' + escapeHtml(title) + '">';
   }
 
+  out += '<div class="recipe-output-header">';
   out += '<div class="recipe-title-display">' + escapeHtml(title) + '</div>';
   if (yld) {
     out += '<div class="recipe-yield-display">Serves: <strong>' + yld + '</strong>';
     if (scaled) out += ' &mdash; scaled to <strong>' + svc + '</strong>';
     out += '</div>';
   }
+  out += '</div>';
 
   if (scaled) {
     out += '<div class="scale-notice no-print"><i class="fas fa-info-circle"></i> Ingredients scaled &times;' + sf.toFixed(2) + ' for <strong>' + svc + ' people</strong>.</div>';
