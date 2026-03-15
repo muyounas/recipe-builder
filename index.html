@@ -2926,13 +2926,16 @@ function stopVoiceInstruction(keepStatus) {
 }
 
 // ── INGREDIENT VOICE ─────────────────────────────────────────────────────────
-// State: collect all speech into one transcript, parse ONLY after Stop is pressed
+// voiceIngCollected = confirmed final text
+// voiceIngInterim   = current unconfirmed interim text (captured on every result event)
+// On Stop we merge both so pressing Stop mid-word still works instantly
 var voiceIngCollected = '';
+var voiceIngInterim   = '';
 
 function toggleVoiceIngredients() {
   if (!checkSpeechSupport()) return;
   if (voiceIngActive) {
-    stopVoiceIngredients(); // Stop pressed → parse immediately
+    stopVoiceIngredients();
   } else {
     startVoiceIngredients();
   }
@@ -2941,6 +2944,7 @@ function toggleVoiceIngredients() {
 function startVoiceIngredients() {
   if (voiceIngRecognizer) { try { voiceIngRecognizer.abort(); } catch(e) {} }
   voiceIngCollected = '';
+  voiceIngInterim   = '';
 
   var btn     = document.getElementById('voice-ing-btn');
   var status  = document.getElementById('voice-ing-status');
@@ -2965,30 +2969,38 @@ function startVoiceIngredients() {
     for (var i = e.resultIndex; i < e.results.length; i++) {
       if (e.results[i].isFinal) {
         voiceIngCollected += e.results[i][0].transcript + ' ';
+        voiceIngInterim = ''; // clear interim once finalised
       } else {
         interim += e.results[i][0].transcript;
       }
     }
-    preview.textContent = (voiceIngCollected + interim).trim();
+    voiceIngInterim = interim; // always keep latest interim
+    preview.textContent = (voiceIngCollected + voiceIngInterim).trim();
   };
 
   voiceIngRecognizer.onerror = function(e) {
     if (e.error === 'no-speech') return;
-    var msg = e.error === 'not-allowed' ? 'Microphone access denied. Allow mic in browser settings.' : 'Voice error: ' + e.error;
-    stopVoiceIngredients();
+    var msg = e.error === 'not-allowed'
+      ? 'Microphone access denied. Allow mic in browser settings.'
+      : 'Voice error: ' + e.error;
+    voiceIngActive = false;
+    if (voiceIngRecognizer) { try { voiceIngRecognizer.abort(); } catch(ex) {} voiceIngRecognizer = null; }
+    var btn2 = document.getElementById('voice-ing-btn');
+    if (btn2) { btn2.classList.remove('listening'); btn2.innerHTML = '<i class="fa-solid fa-microphone"></i>'; }
     document.getElementById('voice-ing-status').innerHTML =
       '<i class="fa-solid fa-circle-exclamation" style="color:var(--red-light);"></i> ' + msg;
   };
 
   voiceIngRecognizer.onend = function() {
-    // Auto-restart while still active so it keeps listening
     if (voiceIngActive) {
       try { voiceIngRecognizer.start(); } catch(e) {}
     }
   };
 
-  try { voiceIngRecognizer.start(); } catch(e) {
-    stopVoiceIngredients();
+  try {
+    voiceIngRecognizer.start();
+  } catch(e) {
+    voiceIngActive = false;
     document.getElementById('voice-ing-status').innerHTML =
       '<i class="fa-solid fa-circle-exclamation" style="color:var(--red-light);"></i> Could not start mic: ' + e.message;
   }
@@ -2996,7 +3008,10 @@ function startVoiceIngredients() {
 
 function stopVoiceIngredients() {
   voiceIngActive = false;
-  if (voiceIngRecognizer) { try { voiceIngRecognizer.stop(); } catch(e) {} voiceIngRecognizer = null; }
+  if (voiceIngRecognizer) {
+    try { voiceIngRecognizer.stop(); } catch(e) {}
+    voiceIngRecognizer = null;
+  }
 
   var btn     = document.getElementById('voice-ing-btn');
   var status  = document.getElementById('voice-ing-status');
@@ -3004,7 +3019,11 @@ function stopVoiceIngredients() {
   if (btn)    { btn.classList.remove('listening'); btn.innerHTML = '<i class="fa-solid fa-microphone"></i>'; }
   if (preview){ preview.classList.remove('active'); preview.textContent = ''; }
 
-  var text = voiceIngCollected.trim();
+  // KEY FIX: merge final + any unfinished interim text captured at the moment Stop was pressed
+  var text = (voiceIngCollected + ' ' + voiceIngInterim).trim();
+  voiceIngCollected = '';
+  voiceIngInterim   = '';
+
   if (!text) {
     if (status) status.innerHTML = '<i class="fa-solid fa-circle-info" style="color:#6aaa96;"></i> Nothing heard. Try again.';
     return;
@@ -3016,15 +3035,15 @@ function stopVoiceIngredients() {
     return;
   }
 
-  // Parse instantly with local regex — no API call needed
+  status.innerHTML = '<span class="vs-dot"></span> Processing…';
+
   var results = parseIngredientsFromText(text);
   var addedEl = document.getElementById('voice-ing-added');
   addedEl.innerHTML = '';
 
   if (results.length === 0) {
-    // Nothing parsed — put raw text into name field so user can fill in qty
     document.getElementById('ingredient-name').value = text;
-    if (status) status.innerHTML = '<i class="fa-solid fa-pen-to-square" style="color:#f0c96e;"></i> Could not parse — name filled in. Adjust qty and click Add.';
+    if (status) status.innerHTML = '<i class="fa-solid fa-pen-to-square" style="color:#f0c96e;"></i> Filled name field — adjust qty and click Add.';
     return;
   }
 
@@ -3033,20 +3052,22 @@ function stopVoiceIngredients() {
     var badge = document.createElement('span');
     badge.className = 'voice-added-badge';
     var unitName = (MEASUREMENT_TYPES[ing.unitKey] || { name: ing.unitKey }).name;
-    badge.innerHTML = '<i class="fa-solid fa-circle-check"></i> ' + escapeHtml(ing.quantity + ' ' + unitName + ' ' + ing.name);
+    badge.innerHTML = '<i class="fa-solid fa-circle-check"></i> '
+      + escapeHtml(ing.quantity + ' ' + unitName + ' ' + ing.name);
     addedEl.appendChild(badge);
-    setTimeout(function() { if (badge.parentNode) badge.parentNode.removeChild(badge); }, 5000);
+    setTimeout(function(b) { return function() { if (b.parentNode) b.parentNode.removeChild(b); }; }(badge), 5000);
   });
 
   if (status) {
-    status.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#6aaa96;"></i> Added ' + results.length + ' ingredient' + (results.length > 1 ? 's' : '') + '!';
+    status.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#6aaa96;"></i> Added '
+      + results.length + ' ingredient' + (results.length > 1 ? 's' : '') + '!';
     setTimeout(function() {
       var s = document.getElementById('voice-ing-status');
       if (s) s.innerHTML = '';
     }, 3000);
   }
-  voiceIngCollected = '';
 }
+
 
 // ── INSTANT LOCAL INGREDIENT PARSER ──────────────────────────────────────────
 // Parses a full spoken transcript into multiple ingredients with zero API calls.
