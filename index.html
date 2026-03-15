@@ -443,12 +443,12 @@ body {
 .task-teal   .task-block-header { background: #f0fdfa; color: #134e4a; border-bottom: 2px solid #14b8a6; }
 .task-teal   .task-block-header i { color: #14b8a6; }
 
-/* Instructions — red, bold */
+/* Instructions — red, bold, circle icon vertically centred to text */
 li.recipe-instruction {
   color: #c0392b; font-weight: 700;
-  display: flex; align-items: flex-start; gap: 12px;
-  line-height: 1.55; font-size: 1em;
-  padding: 11px 0; border-bottom: 1px solid #f5f0e8;
+  display: flex; align-items: center; gap: 10px;
+  line-height: 1.5; font-size: 1em;
+  padding: 10px 0; border-bottom: 1px solid #f5f0e8;
 }
 li.recipe-instruction:last-child { border-bottom: none; }
 li.recipe-instruction .instr-icon {
@@ -456,53 +456,39 @@ li.recipe-instruction .instr-icon {
   width: 26px; height: 26px; border-radius: 50%;
   background: #c0392b; color: #fff;
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.75em; margin-top: 2px;
+  font-size: 0.75em;
 }
 
-/* Ingredients — indented, icon left, name middle, qty right */
+/* Ingredients — original style */
 li.recipe-ingredient {
-  display: flex; align-items: center; gap: 12px;
-  font-size: 1em; color: var(--ink);
-  padding: 9px 0 9px 12px; border-bottom: 1px solid #f5f0e8;
+  display: flex; align-items: center; gap: 9px;
+  font-size: 0.86em; color: var(--ink);
+  padding: 3px 0; border-bottom: none;
 }
 li.recipe-ingredient:last-child { border-bottom: none; }
-li.recipe-ingredient .ing-name { font-weight: 600; flex: 1; font-size: 0.97em; color: #1a1a2e; }
+li.recipe-ingredient i { flex-shrink: 0; font-size: 0.78em; }
+li.recipe-ingredient .ing-name { font-weight: 700; flex: 1; font-size: 1em; color: #1a1a2e; }
 li.recipe-ingredient .ing-qty {
-  font-weight: 700; font-size: 0.91em;
-  color: #2e3a52;
+  font-weight: 700; font-size: 0.92em;
+  color: #2e3a52; background: #f2ede0;
+  padding: 3px 10px; border-radius: 20px;
   white-space: nowrap; flex-shrink: 0;
-  text-align: right;
 }
 .instruction-image { max-width: 100%; max-height: 200px; border-radius: 8px; margin-top: 10px; display: block; object-fit: cover; }
 
-/* Ingredient icon — coloured circle dot for unit, emoji for ingredient */
-.ing-icon {
+/* Ingredient emoji icon */
+.ing-emoji {
+  font-size: 1.3em;
   flex-shrink: 0;
-  width: 28px; height: 28px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.15em;
+  width: 28px; text-align: center;
   line-height: 1;
 }
-.ing-icon.is-emoji { background: none; font-size: 1.35em; }
-.ing-icon.is-unit {
-  font-size: 0.72em; font-weight: 900;
-  letter-spacing: -0.5px;
-  color: #fff;
-}
 
-/* Hero image — square-ish, centered */
+/* Hero image */
 .recipe-hero-img {
-  width: calc(100% - 44px);
-  max-height: 280px;
-  min-height: 160px;
+  width: 100%; max-height: 240px;
   object-fit: cover; display: block;
-  border-radius: 12px;
-  margin: 18px 22px 0;
-  box-shadow: 0 4px 18px rgba(0,0,0,0.13);
-}
-@media (max-width: 900px) {
-  .recipe-hero-img { width: 100%; margin: 0 0 0 0; border-radius: 0; box-shadow: none; }
+  border-radius: var(--radius) var(--radius) 0 0;
 }
 
 @media (max-width: 900px) {
@@ -1487,17 +1473,17 @@ var currentUser = null;
 var isAuthMode  = 'signin';
 
 var MEASUREMENT_TYPES = {
-  'Tbs':    { name: 'TBS',   color: '#1A6B3D' },
-  'Tsp':    { name: 'TSP',   color: '#A31F1F' },
-  'Cup':    { name: 'CUP',   color: '#10408A' },
-  'Units':  { name: 'PCS',   color: '#5D4D32' },
-  'KG':     { name: 'KG',    color: '#7c3aed' },
-  'GRAMS':  { name: 'G',     color: '#0891b2' },
-  'LBS':    { name: 'LBS',   color: '#92400e' },
-  'OZ':     { name: 'OZ',    color: '#065f46' },
-  'ML':     { name: 'ML',    color: '#1e3a8a' },
-  'Liters': { name: 'L',     color: '#831843' },
-  'Pinch':  { name: 'PINCH', color: '#6b7280' }
+  'Tbs':    { name: 'Tablespoon', color: '#1A6B3D' },
+  'Tsp':    { name: 'Teaspoon',   color: '#A31F1F' },
+  'Cup':    { name: 'Cup',        color: '#10408A' },
+  'Units':  { name: 'Units',      color: '#5D4D32' },
+  'KG':     { name: 'KG',         color: '#7c3aed' },
+  'GRAMS':  { name: 'Grams',      color: '#0891b2' },
+  'LBS':    { name: 'Lbs',        color: '#92400e' },
+  'OZ':     { name: 'Oz',         color: '#065f46' },
+  'ML':     { name: 'ml',         color: '#1e3a8a' },
+  'Liters': { name: 'Liters',     color: '#831843' },
+  'Pinch':  { name: 'Pinch',      color: '#6b7280' }
 };
 
 var TASK_STYLES = ['task-blue','task-green','task-orange','task-purple','task-teal'];
@@ -2017,14 +2003,16 @@ function generateRecipeCard() {
         var emoji = getIngredientEmoji(item.ingredient);
         var unitAbbr = getUnitAbbr(item.unitKey);
         out += '<li class="recipe-ingredient">';
-        // Left icon: emoji if we have one, nothing if not
+        // Left: emoji if we have one, colour dot if not
         if (emoji) {
-          out += '<span class="ing-icon is-emoji">' + emoji + '</span>';
+          out += '<span class="ing-emoji">' + emoji + '</span>';
+        } else {
+          out += '<i class="fa-solid fa-circle-dot" style="color:' + mt.color + ';font-size:0.85em;flex-shrink:0;"></i>';
         }
         // Middle: ingredient name
         out += '<span class="ing-name">' + escapeHtml(item.ingredient) + '</span>';
-        // Right: qty + unit — coloured, caps, abbreviated
-        out += '<span class="ing-qty"><span style="color:' + mt.color + ';font-weight:800;letter-spacing:0.5px;">' + qty + ' ' + escapeHtml(mt.name) + '</span></span>';
+        // Right: qty + unit pill
+        out += '<span class="ing-qty" style="background:' + mt.color + '22;color:' + mt.color + ';border:1.5px solid ' + mt.color + '44;">' + qty + ' ' + escapeHtml(mt.name) + '</span>';
         out += '</li>';
       }
     });
