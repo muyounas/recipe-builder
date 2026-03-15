@@ -1920,18 +1920,39 @@ function renderActiveTaskItems() {
     div.className = 'editable-item';
     div.setAttribute('data-item-id', item.id);
     if (item.type === 'taskref') {
-      var qtyLabel = item.qty
-        ? (item.qty + ' ' + (item.unitKey === 'PCT' ? '%' : (MEASUREMENT_TYPES[item.unitKey] ? MEASUREMENT_TYPES[item.unitKey].name : (item.unitKey || ''))))
-        : 'All';
+      // Build source task options (all tasks before current)
+      var currentIdx = currentRecipe.tasks.findIndex(function(t) { return t.id === currentTaskId; });
+      var taskOpts = currentRecipe.tasks.map(function(t, ti) {
+        if (ti >= currentIdx) return '';
+        return '<option value="' + t.id + '"' + (String(t.id) === String(item.fromTaskId) ? ' selected' : '') + '>' + escapeHtml(t.name) + '</option>';
+      }).join('');
+      var unitOpts = Object.keys(MEASUREMENT_TYPES).map(function(k) {
+        return '<option value="' + k + '"' + (item.unitKey === k ? ' selected' : '') + '>' + (k === 'PCT' ? '% (percentage)' : MEASUREMENT_TYPES[k].name) + '</option>';
+      }).join('');
       div.style.background = '#f5f3ff';
       div.style.borderColor = '#c4b5fd';
+      div.style.flexWrap = 'wrap';
+      div.style.gap = '6px';
       div.innerHTML =
         '<i class="fa-solid fa-grip-vertical drag-handle"></i>' +
         '<span class="item-badge badge-ref">Ref</span>' +
-        '<div style="flex:1;min-width:0;">' +
-          '<div style="font-weight:700;color:#4c1d95;font-size:0.85em;">' + escapeHtml(item.label || resolveTaskName(item.fromTaskId, item.fromTaskName)) + '</div>' +
-          '<div style="font-size:0.75em;color:#6d28d9;">from: ' + escapeHtml(resolveTaskName(item.fromTaskId, item.fromTaskName)) + ' &bull; ' + escapeHtml(qtyLabel) + '</div>' +
-        '</div>' +
+        // Label input
+        '<input type="text" value="' + escapeHtml(item.label || '') + '" placeholder="Label" ' +
+          'oninput="updateTaskRefField(' + item.id + ','label',this.value)" ' +
+          'style="flex:2;min-width:110px;font-weight:600;color:#4c1d95;">' +
+        // Source task select
+        '<select onchange="updateTaskRefField(' + item.id + ','fromTask',this.value)" ' +
+          'style="flex:1;min-width:100px;color:#4c1d95;font-size:0.8em;">' +
+          taskOpts +
+        '</select>' +
+        // Qty input
+        '<input type="number" value="' + (item.qty || '') + '" placeholder="Qty" ' +
+          'oninput="updateTaskRefField(' + item.id + ','qty',this.value)" ' +
+          'style="max-width:65px;">' +
+        // Unit select
+        '<select onchange="updateTaskRefField(' + item.id + ','unitKey',this.value)" style="max-width:110px;">' +
+          '<option value="">no unit</option>' + unitOpts +
+        '</select>' +
         '<i class="fa-solid fa-trash del-item" onclick="deleteItem(' + item.id + ')"></i>';
     } else if (item.type === 'instruction') {
       div.innerHTML =
@@ -2063,8 +2084,11 @@ function generateRecipeCard() {
         var srcStyle = srcIdx >= 0 ? TASK_STYLES[srcIdx % TASK_STYLES.length] : 'task-blue';
         var pal = STYLE_PALETTE[srcStyle];
         var mt = item.unitKey ? (MEASUREMENT_TYPES[item.unitKey] || { name: item.unitKey, color: pal.pill }) : null;
-        var qtyStr = item.qty
-          ? (item.qty + ' ' + (item.unitKey === 'PCT' ? '%' : mt ? mt.name : ''))
+        // Scale qty with recipe scale factor — but NOT percentages (self-scaling)
+        var rawQty = item.qty;
+        var scaledQty = (rawQty && item.unitKey !== 'PCT') ? parseFloat((rawQty * sf).toFixed(3)) : rawQty;
+        var qtyStr = scaledQty
+          ? (scaledQty + ' ' + (item.unitKey === 'PCT' ? '%' : mt ? mt.name : ''))
           : 'All';
         out += '<li class="recipe-taskref" style="background:' + pal.bg + ';border-color:' + pal.border + ';">';
         out += '<span class="ref-arrow" style="background:' + pal.pill + ';"><i class="fa-solid fa-arrow-turn-down"></i></span>';
@@ -2172,6 +2196,25 @@ function addTaskRef(fromTaskId, fromTaskName, label, qty, unitKey) {
     unitKey: unitKey || null
   });
   renderActiveTaskItems(); generateAndDisplay();
+  autoSave();
+}
+
+function updateTaskRefField(itemId, field, value) {
+  var task = getCurrentTask();
+  if (!task) return;
+  var item = task.items.find(function(i) { return i.id === itemId; });
+  if (!item || item.type !== 'taskref') return;
+  if (field === 'label') {
+    item.label = value;
+  } else if (field === 'fromTask') {
+    var t = currentRecipe.tasks.find(function(t) { return String(t.id) === String(value); });
+    if (t) { item.fromTaskId = t.id; item.fromTaskName = t.name; if (item.label === item.fromTaskName) item.label = t.name; }
+  } else if (field === 'qty') {
+    item.qty = parseFloat(value) || null;
+  } else if (field === 'unitKey') {
+    item.unitKey = value || null;
+  }
+  generateAndDisplay();
   autoSave();
 }
 
