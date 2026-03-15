@@ -927,12 +927,12 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
 @media (max-width: 900px) {
   body { flex-direction: column; }
 
-  /* Sidebar: fixed at top, max 50vh so it never dominates the screen */
+  /* Sidebar: fixed at top, scrollable, full screen height available */
   #sidebar {
     position: relative;
     width: 100%;
     height: auto;
-    max-height: 50vh;
+    max-height: 100vh;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -1525,6 +1525,8 @@ function loadRecipe(recipeId) {
   syncRecipeImageUI(currentRecipe.image || '');
   updateTaskListUI(); renderActiveTaskItems(); generateAndDisplay(); updateSavedRecipesUI();
   setAutoSaveStatus('saved');
+  // Auto-collapse the recipes list after selecting so the content is immediately visible
+  if (recipesListVisible) toggleRecipesList();
   switchTab('card');
 }
 
