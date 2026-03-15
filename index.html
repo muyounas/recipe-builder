@@ -835,6 +835,15 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
   #tasks-panel { height: auto !important; flex: none !important; }
   #recipes-panel { flex: none !important; }
 }
+
+/* ── PREVENT iOS ZOOM ON INPUT FOCUS ───────────────────────────────────────── */
+/* iOS Safari zooms when any input has font-size < 16px.                        */
+/* This overrides to 16px on mobile only — desktop keeps its compact sizing.    */
+@media (max-width: 900px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
 </style>
 </head>
 <body>
@@ -3116,14 +3125,28 @@ function parseSingleIngredient(text, unitMap, fractionMap) {
   text = text.trim().toLowerCase();
   if (!text) return null;
 
+  // ── Step 1: Convert number words to digits ───────────────────────────────
+  var wordNums = {
+    'zero':0,'one':1,'two':2,'three':3,'four':4,'five':5,'six':6,'seven':7,
+    'eight':8,'nine':9,'ten':10,'eleven':11,'twelve':12,'thirteen':13,
+    'fourteen':14,'fifteen':15,'sixteen':16,'seventeen':17,'eighteen':18,
+    'nineteen':19,'twenty':20,'thirty':30,'forty':40,'fifty':50
+  };
+  // Replace number words at the start: "two" → "2", "twenty five" → "25"
+  text = text.replace(/^(twenty|thirty|forty|fifty)\s+(one|two|three|four|five|six|seven|eight|nine)\b/, function(m, tens, ones) {
+    return String(wordNums[tens] + wordNums[ones]);
+  });
+  text = text.replace(/^(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty)\b/, function(m) {
+    return String(wordNums[m]);
+  });
+
+  // ── Step 2: Strip filler words ────────────────────────────────────────────
+  text = text.replace(/^(a|an)\s+/, '1 ').replace(/\bof\s+/g, ' ');
+
   var qty = 0;
   var unitKey = 'Units';
-  var name = '';
 
-  // Strip leading "of " or "a " or "an "
-  text = text.replace(/^(a|an)\s+/, '1 ').replace(/of\s+/g, ' ');
-
-  // Try fraction words first
+  // ── Step 3: Try fraction words ────────────────────────────────────────────
   for (var frac in fractionMap) {
     if (text.indexOf(frac) === 0) {
       qty = fractionMap[frac];
@@ -3132,35 +3155,82 @@ function parseSingleIngredient(text, unitMap, fractionMap) {
     }
   }
 
-  // Try numeric quantity (including decimals and fractions like 1/2)
+  // ── Step 4: Try numeric quantity (digits, decimals, fractions like 1/2) ───
   if (qty === 0) {
     var numMatch = text.match(/^(\d+(?:\.\d+)?)\s*(?:\/\s*(\d+))?\s*/);
     if (numMatch) {
       qty = parseFloat(numMatch[1]);
       if (numMatch[2]) qty = qty / parseInt(numMatch[2]);
       text = text.slice(numMatch[0].length).trim();
-      // Optional mixed number: "1 and a half" etc — skip for simplicity
     }
   }
 
-  if (qty === 0) qty = 1; // default to 1 if no number found
+  if (qty === 0) qty = 1;
 
-  // Try to match unit word
+  // ── Step 5: Try to match a unit word ─────────────────────────────────────
   var words = text.split(/\s+/);
   if (words.length > 0 && unitMap[words[0]]) {
     unitKey = unitMap[words[0]];
     words.shift();
-    // Skip "of" after unit
     if (words[0] === 'of') words.shift();
   }
 
-  name = words.join(' ').trim();
-  // Remove trailing punctuation
-  name = name.replace(/[.,;:!?]+$/, '').trim();
-  if (!name) return null;
+  // ── Step 6: Separate base ingredient name from descriptors ────────────────
+  // Descriptors: words like "finely", "chopped", "diced", "sliced", "minced",
+  // "roughly", "grated", "peeled", "frozen", "fresh", "dried", "cooked" etc.
+  var descriptorWords = [
+    'finely','roughly','coarsely','thinly','thickly','freshly',
+    'chopped','diced','sliced','minced','grated','shredded','peeled',
+    'frozen','fresh','dried','cooked','raw','whole','crushed','ground',
+    'toasted','roasted','melted','softened','room','temperature','cubed',
+    'halved','quartered','mashed','beaten','sifted','packed','heaped',
+    'optional','rinsed','drained','pitted','seeded','deveined','trimmed',
+    'large','medium','small','ripe','unripe'
+  ];
 
-  // Capitalize first letter
-  name = name.charAt(0).toUpperCase() + name.slice(1);
+  // Split words into base name vs descriptor phrase
+  var baseWords = [];
+  var descWords = [];
+  var inDesc = false;
+  for (var wi = 0; wi < words.length; wi++) {
+    var w = words[wi].replace(/[.,;:!?]+$/, '');
+    if (!w) continue;
+    if (descriptorWords.indexOf(w) !== -1) {
+      inDesc = true;
+    }
+    if (inDesc) {
+      descWords.push(w);
+    } else {
+      baseWords.push(w);
+    }
+  }
+
+  // Build name: "Tomato" or "Tomato (finely chopped)"
+  var baseName = baseWords.join(' ').trim();
+  if (!baseName) baseName = words.join(' ').trim(); // fallback
+  baseName = baseName.replace(/[.,;:!?]+$/, '').trim();
+
+  // Singularize common ingredient plurals: tomatoes→tomato, onions→onion etc.
+  baseName = baseName
+    .replace(/tomatoes$/i, 'tomato')
+    .replace(/potatoes$/i, 'potato')
+    .replace(/onions$/i, 'onion')
+    .replace(/peppers$/i, 'pepper')
+    .replace(/cloves$/i, 'clove')
+    .replace(/eggs$/i, 'egg')
+    .replace(/carrots$/i, 'carrot')
+    .replace(/mushrooms$/i, 'mushroom')
+    .replace(/lemons$/i, 'lemon')
+    .replace(/limes$/i, 'lime')
+    .replace(/(\w{3,})ies$/i, '$1y')
+    .replace(/(\w{4,})s$/i, '$1');
+
+  var descPhrase = descWords.join(' ').trim().replace(/[.,;:!?]+$/, '');
+  var name = descPhrase
+    ? baseName.charAt(0).toUpperCase() + baseName.slice(1) + ' (' + descPhrase + ')'
+    : baseName.charAt(0).toUpperCase() + baseName.slice(1);
+
+  if (!name || name === '(' ) return null;
 
   return { name: name, quantity: qty, unitKey: unitKey };
 }
