@@ -2529,43 +2529,59 @@ function importFromVideo() {
   if (!url) { toast('Please paste a URL first.'); return; }
 
   btn.disabled = true;
-  btn.innerHTML = '<span class="ai-spinner"></span> Reading\u2026';
+  btn.innerHTML = '<span class="ai-spinner"></span> Fetching\u2026';
   statusEl.className = 'ai-status loading';
-  statusEl.innerHTML = '<span class="ai-spinner"></span><span>Reading page and structuring recipe\u2026 (10\u201330 sec)</span>';
+  statusEl.innerHTML = '<span class="ai-spinner"></span><span>Step 1/2: Fetching page content\u2026</span>';
   statusEl.style.display = 'flex';
 
-  var messages = [{ role: 'user', content: 'Extract and structure the recipe from this URL: ' + url }];
+  // Step 1: Fetch the raw page through corsproxy so we get the actual HTML
+  var proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url);
+  fetch(proxyUrl)
+    .then(function(res) {
+      if (!res.ok) throw new Error('Could not fetch page (status ' + res.status + '). Try a direct recipe URL.');
+      return res.text();
+    })
+    .then(function(html) {
+      // Strip HTML tags and collapse whitespace to get readable text
+      var text = html
+        .replace(/<script[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[\s\S]*?<\/style>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/\s{3,}/g, '\n')
+        .trim();
 
-  function callAPI() {
-    return anthropicFetch({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4000,
-      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-      system: IMPORT_SYSTEM_PROMPT,
-      messages: messages
+      // Limit to ~12000 chars to stay within token limits
+      if (text.length > 12000) {
+        // Try to find the recipe section — look for keywords
+        var recipeIdx = text.search(/ingredient|recipe|method|instruction|preparation/i);
+        if (recipeIdx > 2000) text = text.substring(recipeIdx - 500);
+        text = text.substring(0, 12000);
+      }
+
+      statusEl.innerHTML = '<span class="ai-spinner"></span><span>Step 2/2: Structuring recipe\u2026</span>';
+
+      // Step 2: Single Claude call with the page text — no tools needed
+      return anthropicFetch({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        system: IMPORT_SYSTEM_PROMPT,
+        messages: [{
+          role: 'user',
+          content: 'Here is the content from ' + url + ':\n\n' + text + '\n\nExtract and structure the recipe from the above content.'
+        }]
+      });
     })
     .then(function(res) {
       if (!res.ok) return res.json().then(function(e) { throw new Error('API ' + res.status + ': ' + (e.error && e.error.message ? e.error.message : JSON.stringify(e))); });
       return res.json();
     })
-    .then(function(data) {
-      if (data.stop_reason === 'tool_use') {
-        messages.push({ role: 'assistant', content: data.content });
-        var toolResults = [];
-        data.content.forEach(function(block) {
-          if (block.type === 'tool_use') {
-            toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: 'search executed' });
-          }
-        });
-        messages.push({ role: 'user', content: toolResults });
-        return callAPI();
-      }
-      return parseImportResponse(data);
-    });
-  }
-
-  callAPI()
-    .then(function(p) { populateRecipeFromParsed(p, statusEl, btn, urlInput, 'Build'); })
+    .then(function(data) { return parseImportResponse(data); })
+    .then(function(p)    { populateRecipeFromParsed(p, statusEl, btn, urlInput, 'Build'); })
     .catch(function(err) {
       statusEl.className = 'ai-status error';
       statusEl.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i><span><strong>Could not import:</strong> ' + escapeHtml(err.message) + '</span>';
