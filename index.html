@@ -1574,9 +1574,6 @@ function loadRecipe(recipeId) {
     document.getElementById('main').classList.remove('mobile-empty');
     // Ensure recipes list state is tracked as collapsed
     recipesListVisible = true; // reset so next toggle works correctly
-  } else {
-    // Desktop: just collapse the recipes list
-    if (recipesListVisible) toggleRecipesList();
   }
   switchTab('card');
 }
