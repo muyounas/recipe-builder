@@ -926,12 +926,40 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
 
 @media (max-width: 900px) {
   body { flex-direction: column; }
-  #sidebar { position: relative; width: 100%; height: auto; min-height: auto; }
+
+  /* Sidebar: fixed at top, max 50vh so it never dominates the screen */
+  #sidebar {
+    position: relative;
+    width: 100%;
+    height: auto;
+    max-height: 50vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Saved recipes panel scrolls within the capped sidebar */
+  #recipes-panel {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  #recipes-panel .sidebar-panel-inner {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   #main { margin-left: 0; padding: 14px; min-height: auto; }
   #settings-card .card-body { grid-template-columns: 1fr 1fr; }
   .sidebar-drag-divider { display: none; }
   #tasks-panel { height: auto !important; flex: none !important; }
-  #recipes-panel { flex: none !important; }
+
+  /* When sidebar is collapsed on mobile, show full main area */
+  #sidebar.collapsed { max-height: 0; padding: 0; overflow: hidden; }
+  #sidebar-toggle-btn { top: 8px; left: 8px; }
 }
 
 /* ── PREVENT iOS ZOOM ON INPUT FOCUS ───────────────────────────────────────── */
@@ -1040,7 +1068,10 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
   <div class="sidebar-panel" id="recipes-panel" style="flex:1;">
     <div class="sidebar-section" style="padding-top:14px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-        <div class="sidebar-section-title" style="margin-bottom:0;">Saved Recipes</div>
+        <div style="display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="toggleRecipesList()">
+          <i class="fa-solid fa-chevron-down" id="recipes-chevron" style="font-size:0.65em;color:rgba(240,201,110,0.55);transition:transform 0.2s;"></i>
+          <div class="sidebar-section-title" style="margin-bottom:0;">Saved Recipes</div>
+        </div>
         <div style="display:flex;gap:4px;">
           <button onclick="downloadRecipeAsJSON()" title="Download current recipe" style="background:none;border:none;color:rgba(240,201,110,0.50);cursor:pointer;font-size:0.82em;padding:2px 5px;transition:color 0.15s;" onmouseover="this.style.color='#f0c96e'" onmouseout="this.style.color='rgba(240,201,110,0.50)'">
             <i class="fa-solid fa-download"></i>
@@ -1051,7 +1082,7 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
         </div>
       </div>
     </div>
-    <div class="sidebar-panel-inner">
+    <div class="sidebar-panel-inner" id="recipes-list-inner">
       <div id="folders-container"></div>
       <div class="saved-recipes-list" id="saved-recipes-container"></div>
     </div>
@@ -2813,6 +2844,7 @@ function initSidebarResize() {
 
 // ===================== SIDEBAR TOGGLE =====================
 var sidebarVisible = true;
+var recipesListVisible = true;
 
 function toggleSidebar() {
   sidebarVisible = !sidebarVisible;
@@ -2831,6 +2863,19 @@ function toggleSidebar() {
     main.classList.add('sidebar-hidden');
     toggleBtn.classList.add('visible');
     if (collapseBtn) collapseBtn.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
+  }
+}
+
+function toggleRecipesList() {
+  recipesListVisible = !recipesListVisible;
+  var inner   = document.getElementById('recipes-list-inner');
+  var chevron = document.getElementById('recipes-chevron');
+  if (recipesListVisible) {
+    inner.style.display = '';
+    if (chevron) chevron.style.transform = 'rotate(0deg)';
+  } else {
+    inner.style.display = 'none';
+    if (chevron) chevron.style.transform = 'rotate(-90deg)';
   }
 }
 
