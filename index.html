@@ -2926,10 +2926,13 @@ function stopVoiceInstruction(keepStatus) {
 }
 
 // ── INGREDIENT VOICE ─────────────────────────────────────────────────────────
+// State: collect all speech into one transcript, parse ONLY after Stop is pressed
+var voiceIngCollected = '';
+
 function toggleVoiceIngredients() {
   if (!checkSpeechSupport()) return;
   if (voiceIngActive) {
-    stopVoiceIngredients();
+    stopVoiceIngredients(); // Stop pressed → parse immediately
   } else {
     startVoiceIngredients();
   }
@@ -2937,191 +2940,210 @@ function toggleVoiceIngredients() {
 
 function startVoiceIngredients() {
   if (voiceIngRecognizer) { try { voiceIngRecognizer.abort(); } catch(e) {} }
+  voiceIngCollected = '';
+
   var btn     = document.getElementById('voice-ing-btn');
   var status  = document.getElementById('voice-ing-status');
   var preview = document.getElementById('voice-ing-preview');
+  var addedEl = document.getElementById('voice-ing-added');
+  addedEl.innerHTML = '';
 
   voiceIngRecognizer = new SpeechRecognition();
   voiceIngRecognizer.lang = 'en-US';
   voiceIngRecognizer.interimResults = true;
-  voiceIngRecognizer.continuous = true;  // keep listening for multiple ingredients
+  voiceIngRecognizer.continuous = true;
   voiceIngActive = true;
 
   btn.classList.add('listening');
   btn.innerHTML = '<i class="fa-solid fa-stop"></i>';
-  status.innerHTML = '<span class="vs-dot"></span> Listening — say an ingredient, e.g. "2 cups flour"';
+  status.innerHTML = '<span class="vs-dot"></span> Listening… say your ingredients then press Stop';
   preview.classList.add('active');
   preview.textContent = '';
 
-  var finalTranscript = '';
-  var silenceTimer = null;
-
   voiceIngRecognizer.onresult = function(e) {
     var interim = '';
-    finalTranscript = '';
-    for (var i = 0; i < e.results.length; i++) {
+    for (var i = e.resultIndex; i < e.results.length; i++) {
       if (e.results[i].isFinal) {
-        finalTranscript += e.results[i][0].transcript + ' ';
+        voiceIngCollected += e.results[i][0].transcript + ' ';
       } else {
         interim += e.results[i][0].transcript;
       }
     }
-    preview.textContent = (finalTranscript + interim).trim();
-
-    // Auto-submit after 1.5s of silence when we have final text
-    clearTimeout(silenceTimer);
-    if (finalTranscript.trim()) {
-      silenceTimer = setTimeout(function() {
-        parseAndAddIngredientFromVoice(finalTranscript.trim());
-        finalTranscript = '';
-        preview.textContent = '';
-        status.innerHTML = '<span class="vs-dot"></span> Added! Keep going or tap Stop…';
-      }, 1500);
-    }
+    preview.textContent = (voiceIngCollected + interim).trim();
   };
 
   voiceIngRecognizer.onerror = function(e) {
-    clearTimeout(silenceTimer);
-    if (e.error === 'no-speech') {
-      // No speech is fine in continuous mode, just continue
-      return;
-    }
+    if (e.error === 'no-speech') return;
+    var msg = e.error === 'not-allowed' ? 'Microphone access denied. Allow mic in browser settings.' : 'Voice error: ' + e.error;
     stopVoiceIngredients();
-    var msg = e.error === 'not-allowed' ? 'Microphone access denied.' : 'Voice error: ' + e.error;
-    status.innerHTML = '<i class="fa-solid fa-circle-exclamation" style="color:var(--red-light);"></i> ' + msg;
+    document.getElementById('voice-ing-status').innerHTML =
+      '<i class="fa-solid fa-circle-exclamation" style="color:var(--red-light);"></i> ' + msg;
   };
 
   voiceIngRecognizer.onend = function() {
-    // In continuous mode, restart if still active
+    // Auto-restart while still active so it keeps listening
     if (voiceIngActive) {
-      try { voiceIngRecognizer.start(); } catch(e) { stopVoiceIngredients(); }
+      try { voiceIngRecognizer.start(); } catch(e) {}
     }
   };
 
-  try {
-    voiceIngRecognizer.start();
-  } catch(e) {
+  try { voiceIngRecognizer.start(); } catch(e) {
     stopVoiceIngredients();
-    status.innerHTML = '<i class="fa-solid fa-circle-exclamation" style="color:var(--red-light);"></i> Could not start mic: ' + e.message;
+    document.getElementById('voice-ing-status').innerHTML =
+      '<i class="fa-solid fa-circle-exclamation" style="color:var(--red-light);"></i> Could not start mic: ' + e.message;
   }
 }
 
 function stopVoiceIngredients() {
   voiceIngActive = false;
+  if (voiceIngRecognizer) { try { voiceIngRecognizer.stop(); } catch(e) {} voiceIngRecognizer = null; }
+
   var btn     = document.getElementById('voice-ing-btn');
   var status  = document.getElementById('voice-ing-status');
   var preview = document.getElementById('voice-ing-preview');
   if (btn)    { btn.classList.remove('listening'); btn.innerHTML = '<i class="fa-solid fa-microphone"></i>'; }
-  if (voiceIngRecognizer) { try { voiceIngRecognizer.stop(); } catch(e) {} voiceIngRecognizer = null; }
-  if (status) status.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#6aaa96;"></i> Voice mode stopped.';
-  if (preview) { preview.classList.remove('active'); preview.textContent = ''; }
-  setTimeout(function() {
-    var s = document.getElementById('voice-ing-status');
-    if (s) s.innerHTML = '';
-  }, 2500);
-}
+  if (preview){ preview.classList.remove('active'); preview.textContent = ''; }
 
-function parseAndAddIngredientFromVoice(text) {
-  if (!currentTaskId) { toast('Select or create a task first!'); stopVoiceIngredients(); return; }
+  var text = voiceIngCollected.trim();
+  if (!text) {
+    if (status) status.innerHTML = '<i class="fa-solid fa-circle-info" style="color:#6aaa96;"></i> Nothing heard. Try again.';
+    return;
+  }
 
-  // Use Claude AI to parse natural speech into structured ingredient
-  var systemPrompt = [
-    'You are a recipe ingredient parser. The user will speak a natural ingredient description.',
-    'Parse it into a structured ingredient and respond ONLY with a JSON object.',
-    'Available unitKeys: Tbs (tablespoon), Tsp (teaspoon), Cup, Units (each/piece/whole), KG, GRAMS, LBS, OZ, ML, Liters, Pinch.',
-    'Map common spoken words: "tablespoon/tbsp/T" → Tbs, "teaspoon/tsp/t" → Tsp, "cup/cups" → Cup, "gram/grams/g" → GRAMS, "kg/kilogram" → KG, "pound/lb/lbs" → LBS, "ounce/oz" → OZ, "ml/milliliter" → ML, "liter/litre/L" → Liters, "pinch" → Pinch, anything else (piece/whole/each/clove/slice/can etc) → Units.',
-    'Examples: "2 cups flour" → {"name":"Flour","quantity":2,"unitKey":"Cup"}',
-    '          "half teaspoon salt" → {"name":"Salt","quantity":0.5,"unitKey":"Tsp"}',
-    '          "3 cloves garlic" → {"name":"Garlic","quantity":3,"unitKey":"Units"}',
-    '          "100 grams butter" → {"name":"Butter","quantity":100,"unitKey":"GRAMS"}',
-    'Respond ONLY with the JSON object, nothing else.',
-    'If you cannot parse it, return: {"error":"Could not parse"}'
-  ].join('\n');
+  if (!currentTaskId) {
+    toast('Select or create a task first!');
+    if (status) status.innerHTML = '';
+    return;
+  }
 
+  // Parse instantly with local regex — no API call needed
+  var results = parseIngredientsFromText(text);
   var addedEl = document.getElementById('voice-ing-added');
-  var status  = document.getElementById('voice-ing-status');
+  addedEl.innerHTML = '';
 
-  // Show parsing indicator
-  status.innerHTML = '<span class="vs-dot"></span> Parsing "' + text + '"…';
+  if (results.length === 0) {
+    // Nothing parsed — put raw text into name field so user can fill in qty
+    document.getElementById('ingredient-name').value = text;
+    if (status) status.innerHTML = '<i class="fa-solid fa-pen-to-square" style="color:#f0c96e;"></i> Could not parse — name filled in. Adjust qty and click Add.';
+    return;
+  }
 
-  anthropicFetch({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 200,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: text }]
-  })
-  .then(function(res) { return res.json(); })
-  .then(function(data) {
-    var rawText = '';
-    if (data.content && Array.isArray(data.content)) {
-      data.content.forEach(function(b) { if (b.type === 'text') rawText += b.text; });
-    }
-    rawText = rawText.replace(/```json|```/g,'').trim();
-    var parsed = JSON.parse(rawText);
-    if (parsed.error) throw new Error(parsed.error);
-
-    // Add ingredient to task
-    addIngredient(parsed.name, parsed.quantity, parsed.unitKey || 'Units');
-
-    // Show badge confirmation
+  results.forEach(function(ing) {
+    addIngredient(ing.name, ing.quantity, ing.unitKey);
     var badge = document.createElement('span');
     badge.className = 'voice-added-badge';
-    badge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Added: ' +
-      escapeHtml(parsed.quantity + ' ' + (MEASUREMENT_TYPES[parsed.unitKey] || {name: parsed.unitKey || 'Units'}).name + ' ' + parsed.name);
+    var unitName = (MEASUREMENT_TYPES[ing.unitKey] || { name: ing.unitKey }).name;
+    badge.innerHTML = '<i class="fa-solid fa-circle-check"></i> ' + escapeHtml(ing.quantity + ' ' + unitName + ' ' + ing.name);
     addedEl.appendChild(badge);
-
-    // Remove badge after 4 seconds
-    setTimeout(function() { if (badge.parentNode) badge.parentNode.removeChild(badge); }, 4000);
-
-    if (voiceIngActive) {
-      status.innerHTML = '<span class="vs-dot"></span> Keep going — say next ingredient…';
-    }
-  })
-  .catch(function(err) {
-    // Fallback: try simple regex parse if AI fails
-    var fallback = parseIngredientFallback(text);
-    if (fallback) {
-      addIngredient(fallback.name, fallback.quantity, fallback.unitKey);
-      var badge = document.createElement('span');
-      badge.className = 'voice-added-badge';
-      badge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Added: ' + escapeHtml(fallback.quantity + ' ' + fallback.unitKey + ' ' + fallback.name);
-      addedEl.appendChild(badge);
-      setTimeout(function() { if (badge.parentNode) badge.parentNode.removeChild(badge); }, 4000);
-    } else {
-      // Just fill the name field so user can adjust
-      document.getElementById('ingredient-name').value = text;
-      status.innerHTML = '<i class="fa-solid fa-pen-to-square" style="color:#f0c96e;"></i> Filled name — adjust qty and click Add.';
-    }
+    setTimeout(function() { if (badge.parentNode) badge.parentNode.removeChild(badge); }, 5000);
   });
+
+  if (status) {
+    status.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#6aaa96;"></i> Added ' + results.length + ' ingredient' + (results.length > 1 ? 's' : '') + '!';
+    setTimeout(function() {
+      var s = document.getElementById('voice-ing-status');
+      if (s) s.innerHTML = '';
+    }, 3000);
+  }
+  voiceIngCollected = '';
 }
 
-function parseIngredientFallback(text) {
-  // Simple regex: number + optional fraction + unit + name
+// ── INSTANT LOCAL INGREDIENT PARSER ──────────────────────────────────────────
+// Parses a full spoken transcript into multiple ingredients with zero API calls.
+// Handles: "2 cups flour, 1 teaspoon salt, 3 cloves of garlic and 100 grams butter"
+function parseIngredientsFromText(text) {
   var unitMap = {
-    'tablespoon': 'Tbs', 'tablespoons': 'Tbs', 'tbsp': 'Tbs', 'tbs': 'Tbs',
-    'teaspoon': 'Tsp', 'teaspoons': 'Tsp', 'tsp': 'Tsp',
-    'cup': 'Cup', 'cups': 'Cup',
-    'gram': 'GRAMS', 'grams': 'GRAMS', 'g': 'GRAMS',
-    'kg': 'KG', 'kilogram': 'KG', 'kilograms': 'KG',
-    'pound': 'LBS', 'pounds': 'LBS', 'lb': 'LBS', 'lbs': 'LBS',
-    'ounce': 'OZ', 'ounces': 'OZ', 'oz': 'OZ',
-    'ml': 'ML', 'milliliter': 'ML', 'milliliters': 'ML',
-    'liter': 'Liters', 'liters': 'Liters', 'litre': 'Liters', 'litres': 'Liters',
-    'pinch': 'Pinch'
+    'tablespoon':'Tbs','tablespoons':'Tbs','tbsp':'Tbs','tbs':'Tbs',
+    'teaspoon':'Tsp','teaspoons':'Tsp','tsp':'Tsp',
+    'cup':'Cup','cups':'Cup',
+    'gram':'GRAMS','grams':'GRAMS',
+    'kilogram':'KG','kilograms':'KG','kg':'KG',
+    'pound':'LBS','pounds':'LBS','lb':'LBS','lbs':'LBS',
+    'ounce':'OZ','ounces':'OZ','oz':'OZ',
+    'milliliter':'ML','milliliters':'ML','millilitre':'ML','millilitres':'ML','ml':'ML',
+    'liter':'Liters','liters':'Liters','litre':'Liters','litres':'Liters',
+    'pinch':'Pinch','pinches':'Pinch',
+    'piece':'Units','pieces':'Units','slice':'Units','slices':'Units',
+    'clove':'Units','cloves':'Units','can':'Units','cans':'Units',
+    'whole':'Units','large':'Units','medium':'Units','small':'Units',
+    'bunch':'Units','bunches':'Units','sprig':'Units','sprigs':'Units',
+    'stalk':'Units','stalks':'Units','sheet':'Units','sheets':'Units'
   };
-  text = text.toLowerCase().trim();
-  // Match: optional number, optional fraction, optional unit, rest is name
-  var m = text.match(/^(\d+(?:\.\d+)?)?(?:\s+(?:and\s+)?(\d+)\/(\d+))?\s*([a-z]+)?\s+(.+)$/);
-  if (!m) return null;
-  var qty = parseFloat(m[1] || '1');
-  if (m[2] && m[3]) qty += parseInt(m[2]) / parseInt(m[3]);
-  var unitRaw = (m[4] || '').toLowerCase();
-  var unitKey = unitMap[unitRaw] || 'Units';
-  var name = (m[5] || text).trim();
+  var fractionMap = {
+    'half':0.5,'quarter':0.25,'third':0.333,'two thirds':0.667,'three quarters':0.75,
+    'one half':0.5,'one quarter':0.25,'one third':0.333
+  };
+
+  // Split on common spoken separators: comma, "and", "plus", newline
+  var parts = text
+    .replace(/ and /gi, ', ')
+    .replace(/ plus /gi, ', ')
+    .replace(/ then /gi, ', ')
+    .split(/[,\n]+/)
+    .map(function(s) { return s.trim(); })
+    .filter(function(s) { return s.length > 1; });
+
+  var results = [];
+  parts.forEach(function(part) {
+    var ing = parseSingleIngredient(part, unitMap, fractionMap);
+    if (ing) results.push(ing);
+  });
+  return results;
+}
+
+function parseSingleIngredient(text, unitMap, fractionMap) {
+  text = text.trim().toLowerCase();
+  if (!text) return null;
+
+  var qty = 0;
+  var unitKey = 'Units';
+  var name = '';
+
+  // Strip leading "of " or "a " or "an "
+  text = text.replace(/^(a|an)\s+/, '1 ').replace(/of\s+/g, ' ');
+
+  // Try fraction words first
+  for (var frac in fractionMap) {
+    if (text.indexOf(frac) === 0) {
+      qty = fractionMap[frac];
+      text = text.slice(frac.length).trim();
+      break;
+    }
+  }
+
+  // Try numeric quantity (including decimals and fractions like 1/2)
+  if (qty === 0) {
+    var numMatch = text.match(/^(\d+(?:\.\d+)?)\s*(?:\/\s*(\d+))?\s*/);
+    if (numMatch) {
+      qty = parseFloat(numMatch[1]);
+      if (numMatch[2]) qty = qty / parseInt(numMatch[2]);
+      text = text.slice(numMatch[0].length).trim();
+      // Optional mixed number: "1 and a half" etc — skip for simplicity
+    }
+  }
+
+  if (qty === 0) qty = 1; // default to 1 if no number found
+
+  // Try to match unit word
+  var words = text.split(/\s+/);
+  if (words.length > 0 && unitMap[words[0]]) {
+    unitKey = unitMap[words[0]];
+    words.shift();
+    // Skip "of" after unit
+    if (words[0] === 'of') words.shift();
+  }
+
+  name = words.join(' ').trim();
+  // Remove trailing punctuation
+  name = name.replace(/[.,;:!?]+$/, '').trim();
+  if (!name) return null;
+
   // Capitalize first letter
   name = name.charAt(0).toUpperCase() + name.slice(1);
+
   return { name: name, quantity: qty, unitKey: unitKey };
 }
+
 
 // ===================== FOLDERS =====================
 var folders = [];
