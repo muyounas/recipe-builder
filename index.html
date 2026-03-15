@@ -1633,8 +1633,17 @@ function updateRecipeStateFromUI() {
   currentRecipe.title       = document.getElementById('recipe-title').value.trim() || 'Untitled Recipe';
   currentRecipe.yield       = parseInt(document.getElementById('recipe-yield').value) || null;
   currentRecipe.servingSize = parseInt(document.getElementById('serving-size').value) || null;
+  // Only overwrite image if user has explicitly typed/cleared the URL field.
+  // If field is empty, preserve the existing image (could be a base64 upload).
   var imgUrl = document.getElementById('recipe-image-url').value.trim();
-  currentRecipe.image = imgUrl || currentRecipe.image || null;
+  if (imgUrl) {
+    currentRecipe.image = imgUrl;
+  }
+  // If field is empty AND preview is hidden, treat as cleared
+  var preview = document.getElementById('recipe-image-preview');
+  if (!imgUrl && preview && preview.style.display === 'none') {
+    currentRecipe.image = null;
+  }
 }
 
 function saveCurrentRecipe() {
@@ -1901,7 +1910,21 @@ function renderActiveTaskItems() {
     var div = document.createElement('div');
     div.className = 'editable-item';
     div.setAttribute('data-item-id', item.id);
-    if (item.type === 'instruction') {
+    if (item.type === 'taskref') {
+      var qtyLabel = item.qty
+        ? (item.qty + ' ' + (item.unitKey === 'PCT' ? '%' : (MEASUREMENT_TYPES[item.unitKey] ? MEASUREMENT_TYPES[item.unitKey].name : (item.unitKey || ''))))
+        : 'All';
+      div.style.background = '#f5f3ff';
+      div.style.borderColor = '#c4b5fd';
+      div.innerHTML =
+        '<i class="fa-solid fa-grip-vertical drag-handle"></i>' +
+        '<span class="item-badge badge-ref">Ref</span>' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font-weight:700;color:#4c1d95;font-size:0.85em;">' + escapeHtml(item.label || item.fromTaskName) + '</div>' +
+          '<div style="font-size:0.75em;color:#6d28d9;">from: ' + escapeHtml(item.fromTaskName) + ' &bull; ' + escapeHtml(qtyLabel) + '</div>' +
+        '</div>' +
+        '<i class="fa-solid fa-trash del-item" onclick="deleteItem(' + item.id + ')"></i>';
+    } else if (item.type === 'instruction') {
       div.innerHTML =
         '<i class="fa-solid fa-grip-vertical drag-handle"></i>' +
         '<span class="item-badge badge-inst">Instr</span>' +
