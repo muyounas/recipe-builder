@@ -1936,21 +1936,17 @@ function renderActiveTaskItems() {
       div.innerHTML =
         '<i class="fa-solid fa-grip-vertical drag-handle"></i>' +
         '<span class="item-badge badge-ref">Ref</span>' +
-        // Label input
         '<input type="text" value="' + escapeHtml(item.label || '') + '" placeholder="Label" ' +
-          'oninput="updateTaskRefField(' + item.id + ','label',this.value)" ' +
+          'oninput="updateTaskRefField(' + item.id + ',\'label\',this.value)" ' +
           'style="flex:2;min-width:110px;font-weight:600;color:#4c1d95;">' +
-        // Source task select
-        '<select onchange="updateTaskRefField(' + item.id + ','fromTask',this.value)" ' +
+        '<select onchange="updateTaskRefField(' + item.id + ',\'fromTask\',this.value)" ' +
           'style="flex:1;min-width:100px;color:#4c1d95;font-size:0.8em;">' +
           taskOpts +
         '</select>' +
-        // Qty input
         '<input type="number" value="' + (item.qty || '') + '" placeholder="Qty" ' +
-          'oninput="updateTaskRefField(' + item.id + ','qty',this.value)" ' +
+          'oninput="updateTaskRefField(' + item.id + ',\'qty\',this.value)" ' +
           'style="max-width:65px;">' +
-        // Unit select
-        '<select onchange="updateTaskRefField(' + item.id + ','unitKey',this.value)" style="max-width:110px;">' +
+        '<select onchange="updateTaskRefField(' + item.id + ',\'unitKey\',this.value)" style="max-width:110px;">' +
           '<option value="">no unit</option>' + unitOpts +
         '</select>' +
         '<i class="fa-solid fa-trash del-item" onclick="deleteItem(' + item.id + ')"></i>';
