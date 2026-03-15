@@ -993,15 +993,14 @@ li.recipe-ingredient .ing-qty  { color: var(--ink); font-size: 0.92em; font-weig
 li.recipe-taskref {
   display: flex; align-items: flex-start; gap: 10px;
   padding: 9px 12px; margin: 6px 0;
-  background: linear-gradient(135deg, #f5f3ff 0%, #eef6ff 100%);
-  border: 1.5px solid #c4b5fd;
+  border: 1.5px solid;
   border-radius: 10px;
   font-size: 0.93em;
 }
 li.recipe-taskref .ref-arrow {
   flex-shrink: 0;
   width: 28px; height: 28px; border-radius: 50%;
-  background: #7c3aed; color: #fff;
+  color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-size: 0.72em; margin-top: 1px;
 }
@@ -1009,15 +1008,15 @@ li.recipe-taskref .ref-body {
   flex: 1; display: flex; flex-direction: column; gap: 3px;
 }
 li.recipe-taskref .ref-label {
-  font-weight: 700; color: #4c1d95; font-size: 0.97em;
+  font-weight: 700; font-size: 0.97em;
 }
 li.recipe-taskref .ref-from {
-  font-size: 0.80em; color: #6d28d9;
+  font-size: 0.80em;
   display: flex; align-items: center; gap: 5px;
 }
 li.recipe-taskref .ref-qty {
   font-size: 0.82em; font-weight: 700;
-  background: #7c3aed; color: #fff;
+  color: #fff;
   padding: 2px 8px; border-radius: 20px;
   white-space: nowrap; margin-left: auto; align-self: flex-start;
 }
@@ -2043,23 +2042,37 @@ function generateRecipeCard() {
 
   currentRecipe.tasks.forEach(function(task, idx) {
     var style = TASK_STYLES[idx % TASK_STYLES.length];
+
+    // Build a lookup: taskId → colour palette so taskrefs can match their source task
+    var STYLE_PALETTE = {
+      'task-blue':   { bg: '#eff6ff', border: '#3b82f6', accent: '#1e3a8a', pill: '#3b82f6' },
+      'task-green':  { bg: '#f0fdf4', border: '#22c55e', accent: '#14532d', pill: '#22c55e' },
+      'task-orange': { bg: '#fff7ed', border: '#f97316', accent: '#7c2d12', pill: '#f97316' },
+      'task-purple': { bg: '#f5f3ff', border: '#8b5cf6', accent: '#3b0764', pill: '#8b5cf6' },
+      'task-teal':   { bg: '#f0fdfa', border: '#14b8a6', accent: '#134e4a', pill: '#14b8a6' }
+    };
+
     out += '<div class="task-block ' + style + '">';
     out += '<div class="task-block-header"><i class="fa-solid fa-list-ul"></i>' + escapeHtml(task.name) + '</div>';
     out += '<div class="task-block-body"><ul>';
 
     task.items.forEach(function(item) {
       if (item.type === 'taskref') {
-        var mt = item.unitKey ? (MEASUREMENT_TYPES[item.unitKey] || { name: item.unitKey, color: '#7c3aed' }) : null;
+        // Find source task index to get its colour
+        var srcIdx = currentRecipe.tasks.findIndex(function(t) { return String(t.id) === String(item.fromTaskId); });
+        var srcStyle = srcIdx >= 0 ? TASK_STYLES[srcIdx % TASK_STYLES.length] : 'task-blue';
+        var pal = STYLE_PALETTE[srcStyle];
+        var mt = item.unitKey ? (MEASUREMENT_TYPES[item.unitKey] || { name: item.unitKey, color: pal.pill }) : null;
         var qtyStr = item.qty
           ? (item.qty + ' ' + (item.unitKey === 'PCT' ? '%' : mt ? mt.name : ''))
           : 'All';
-        out += '<li class="recipe-taskref">';
-        out += '<span class="ref-arrow"><i class="fa-solid fa-arrow-turn-down"></i></span>';
+        out += '<li class="recipe-taskref" style="background:' + pal.bg + ';border-color:' + pal.border + ';">';
+        out += '<span class="ref-arrow" style="background:' + pal.pill + ';"><i class="fa-solid fa-arrow-turn-down"></i></span>';
         out += '<span class="ref-body">';
-        out += '<span class="ref-label">' + escapeHtml(item.label || resolveTaskName(item.fromTaskId, item.fromTaskName)) + '</span>';
-        out += '<span class="ref-from"><i class="fa-solid fa-link" style="font-size:0.8em;"></i> from: <strong>' + escapeHtml(resolveTaskName(item.fromTaskId, item.fromTaskName)) + '</strong></span>';
+        out += '<span class="ref-label" style="color:' + pal.accent + ';">' + escapeHtml(item.label || resolveTaskName(item.fromTaskId, item.fromTaskName)) + '</span>';
+        out += '<span class="ref-from" style="color:' + pal.pill + ';"><i class="fa-solid fa-link" style="font-size:0.8em;"></i> from: <strong>' + escapeHtml(resolveTaskName(item.fromTaskId, item.fromTaskName)) + '</strong></span>';
         out += '</span>';
-        out += '<span class="ref-qty">' + escapeHtml(qtyStr) + '</span>';
+        out += '<span class="ref-qty" style="background:' + pal.pill + ';">' + escapeHtml(qtyStr) + '</span>';
         out += '</li>';
       } else if (item.type === 'instruction') {
         out += '<li class="recipe-instruction"><i class="fa-solid fa-chevron-right"></i><span>' + escapeHtml(item.text);
@@ -2142,7 +2155,7 @@ function submitTaskRef() {
 
 // Resolve live task name from ID — always up-to-date even after renames
 function resolveTaskName(fromTaskId, storedName) {
-  var t = currentRecipe.tasks.find(function(t) { return t.id === fromTaskId; });
+  var t = currentRecipe.tasks.find(function(t) { return String(t.id) === String(fromTaskId); });
   return t ? t.name : (storedName || 'Unknown Task');
 }
 
