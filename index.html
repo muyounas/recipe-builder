@@ -1930,9 +1930,8 @@ function generateRecipeCard() {
         if (sf !== 1) qty = parseFloat((item.quantity * sf).toFixed(3)).toString().replace(/\.?0+$/, '');
         var emoji = getIngredientEmoji(item.ingredient);
         var unitAbbr = getUnitAbbr(item.unitKey);
-        var ingIcon = getIngredientEmoji(item.ingredient);
         out += '<li class="recipe-ingredient">';
-        out += ingIcon ? '<span style="font-size:1.1em;flex-shrink:0;">' + ingIcon + '</span>' : '<i class="fa-solid fa-circle-dot" style="color:' + mt.color + ';"></i>';
+        out += '<i class="fa-solid fa-circle-dot" style="color:' + mt.color + ';"></i>';
         out += '<span class="ing-name">' + escapeHtml(item.ingredient) + '</span>';
         out += '<span class="ing-qty">' + qty + ' ' + escapeHtml(mt.name) + '</span>';
         out += '</li>';
