@@ -827,6 +827,92 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
   font-size: 0.74em; font-weight: 700; margin-top: 6px;
 }
 
+
+/* ===================== SIDEBAR TOGGLE ===================== */
+#sidebar-toggle-btn {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 200;
+  width: 36px; height: 36px;
+  background: var(--sidebar-bg);
+  border: 1px solid rgba(240,201,110,0.25);
+  border-radius: 8px;
+  color: #f0c96e;
+  cursor: pointer;
+  display: none; /* shown only on mobile via media query */
+  align-items: center;
+  justify-content: center;
+  font-size: 1em;
+  transition: background 0.15s;
+}
+#sidebar-toggle-btn:hover { background: rgba(46,58,82,0.9); }
+
+/* Collapse button inside sidebar — visible on desktop too */
+#sidebar-collapse-btn {
+  background: none;
+  border: none;
+  color: rgba(240,201,110,0.45);
+  cursor: pointer;
+  padding: 4px 6px;
+  font-size: 0.85em;
+  transition: color 0.15s;
+  margin-left: auto;
+}
+#sidebar-collapse-btn:hover { color: #f0c96e; }
+
+/* Collapsed sidebar state */
+#sidebar.collapsed {
+  transform: translateX(-100%);
+}
+#main.sidebar-hidden {
+  margin-left: 0;
+}
+#sidebar-toggle-btn.visible {
+  display: flex;
+}
+
+/* Recipe thumbnail in saved list */
+.saved-item-thumb {
+  width: 36px; height: 36px;
+  border-radius: 5px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: rgba(240,201,110,0.10);
+}
+.saved-item-thumb-placeholder {
+  width: 36px; height: 36px;
+  border-radius: 5px;
+  background: rgba(240,201,110,0.08);
+  border: 1px solid rgba(240,201,110,0.12);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  color: rgba(240,201,110,0.25);
+  font-size: 0.85em;
+}
+
+/* Recipe image in settings card */
+.recipe-image-preview {
+  width: 100%; max-height: 160px;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+  margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+  #sidebar {
+    transition: transform 0.25s ease;
+    z-index: 300;
+  }
+  #sidebar-toggle-btn { display: flex; }
+  #sidebar-collapse-btn { display: none; }
+}
+@media (min-width: 901px) {
+  #sidebar { transition: transform 0.25s ease; }
+  #main { transition: margin-left 0.25s ease; }
+}
+
 @media print {
   #sidebar, .header-right, .output-actions, .tab-bar, .scale-notice, .no-print { display: none !important; }
   #main { padding: 0; margin-left: 0; }
@@ -906,11 +992,21 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
   </div>
 </div>
 
+<!-- SIDEBAR TOGGLE (shown when sidebar is collapsed) -->
+<button id="sidebar-toggle-btn" onclick="toggleSidebar()" title="Show/hide sidebar">
+  <i class="fa-solid fa-bars"></i>
+</button>
+
 <!-- SIDEBAR -->
 <aside id="sidebar" class="no-print">
-  <div class="sidebar-brand">
-    <h1>Recipe Builder</h1>
-    <span>by Uzi</span>
+  <div class="sidebar-brand" style="display:flex;align-items:center;justify-content:space-between;">
+    <div>
+      <h1>Recipe Builder</h1>
+      <span>by Uzi</span>
+    </div>
+    <button id="sidebar-collapse-btn" onclick="toggleSidebar()" title="Hide sidebar">
+      <i class="fa-solid fa-chevron-left"></i>
+    </button>
   </div>
   <!-- User info row (shown after login) -->
   <div class="sidebar-user" id="sidebar-user-row" style="display:none;">
@@ -1013,6 +1109,20 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
         <div class="field-group">
           <label for="serving-size">Scale To (serves)</label>
           <input type="number" id="serving-size" placeholder="e.g. 8" oninput="generateAndDisplay()">
+        </div>
+        <div class="field-group" style="grid-column: span 4;">
+          <label>Recipe Photo</label>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <input type="url" id="recipe-image-url" placeholder="Paste image URL, or upload below" oninput="onRecipeImageChange()" style="flex:1;min-width:180px;">
+            <label class="btn btn-outline btn-sm" style="cursor:pointer;margin:0;">
+              <i class="fa-solid fa-arrow-up-from-bracket"></i> Upload
+              <input type="file" accept="image/*" style="display:none;" onchange="handleRecipeImageUpload(event)">
+            </label>
+            <button class="btn btn-outline btn-sm" onclick="clearRecipeImage()" title="Remove photo" style="padding:6px 8px;">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <img id="recipe-image-preview" class="recipe-image-preview" style="display:none;" alt="Recipe photo">
         </div>
       </div>
     </div>
@@ -1352,6 +1462,8 @@ function updateRecipeStateFromUI() {
   currentRecipe.title       = document.getElementById('recipe-title').value.trim() || 'Untitled Recipe';
   currentRecipe.yield       = parseInt(document.getElementById('recipe-yield').value) || null;
   currentRecipe.servingSize = parseInt(document.getElementById('serving-size').value) || null;
+  var imgUrl = document.getElementById('recipe-image-url').value.trim();
+  currentRecipe.image = imgUrl || currentRecipe.image || null;
 }
 
 function saveCurrentRecipe() {
@@ -1379,6 +1491,7 @@ function loadRecipe(recipeId) {
   document.getElementById('recipe-title').value  = currentRecipe.title;
   document.getElementById('recipe-yield').value  = currentRecipe.yield || '';
   document.getElementById('serving-size').value  = currentRecipe.servingSize || '';
+  syncRecipeImageUI(currentRecipe.image || '');
   updateTaskListUI(); renderActiveTaskItems(); generateAndDisplay(); updateSavedRecipesUI();
   setAutoSaveStatus('saved');
   switchTab('card');
@@ -1393,6 +1506,7 @@ function resetEditorState() {
   document.getElementById('recipe-title').value  = 'Untitled Recipe';
   document.getElementById('recipe-yield').value  = '';
   document.getElementById('serving-size').value  = '';
+  syncRecipeImageUI('');
   setAutoSaveStatus('saved');
   updateTaskListUI(); renderActiveTaskItems(); generateAndDisplay(); updateSavedRecipesUI();
   switchTab('edit');
@@ -1567,10 +1681,14 @@ function updateSavedRecipesUI() {
     var ingCount  = recipe.tasks.reduce(function(s,t) {
       return s + t.items.filter(function(i) { return i.type === 'ingredient'; }).length;
     }, 0);
+    var thumbHtml = recipe.image
+      ? '<img src="' + escapeHtml(recipe.image) + '" class="saved-item-thumb" onerror="this.style.display=\'none\'">'
+      : '<div class="saved-item-thumb-placeholder"><i class="fa-solid fa-bowl-food"></i></div>';
     div.innerHTML =
       '<i class="fa-solid fa-grip-vertical" style="color:rgba(240,201,110,0.22);font-size:0.72em;cursor:grab;flex-shrink:0;margin-right:2px;" title="Drag to folder"></i>' +
+      thumbHtml +
       '<span class="s-title">' + escapeHtml(recipe.title) + '</span>' +
-      '<span class="s-meta">' + taskCount + 't &bull; ' + ingCount + 'i</span>' +
+      '<span class="s-meta">' + taskCount + 't</span>' +
       '<i class="fa-solid fa-folder-arrow-down s-del" title="Add to folder" style="color:#6aaa96;opacity:0.55;" onclick="event.stopPropagation();showAddToFolderMenu(' + recipe.id + ')"></i>' +
       '<i class="fa-solid fa-trash s-del" title="Delete" onclick="event.stopPropagation();deleteSavedRecipe(' + recipe.id + ')"></i>';
     div.addEventListener('dragstart', function(e) {
@@ -2691,6 +2809,78 @@ function importFromImage() {
 // ===================== SIDEBAR DRAG RESIZE =====================
 function initSidebarResize() {
   // Tasks panel removed from sidebar — no resize needed
+}
+
+// ===================== SIDEBAR TOGGLE =====================
+var sidebarVisible = true;
+
+function toggleSidebar() {
+  sidebarVisible = !sidebarVisible;
+  var sidebar    = document.getElementById('sidebar');
+  var main       = document.getElementById('main');
+  var toggleBtn  = document.getElementById('sidebar-toggle-btn');
+  var collapseBtn = document.getElementById('sidebar-collapse-btn');
+
+  if (sidebarVisible) {
+    sidebar.classList.remove('collapsed');
+    main.classList.remove('sidebar-hidden');
+    toggleBtn.classList.remove('visible');
+    if (collapseBtn) collapseBtn.innerHTML = '<i class="fa-solid fa-chevron-left"></i>';
+  } else {
+    sidebar.classList.add('collapsed');
+    main.classList.add('sidebar-hidden');
+    toggleBtn.classList.add('visible');
+    if (collapseBtn) collapseBtn.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
+  }
+}
+
+// ===================== RECIPE IMAGE =====================
+function syncRecipeImageUI(url) {
+  var urlInput = document.getElementById('recipe-image-url');
+  var preview  = document.getElementById('recipe-image-preview');
+  if (!urlInput || !preview) return;
+  urlInput.value = url || '';
+  if (url) {
+    preview.src = url;
+    preview.style.display = 'block';
+  } else {
+    preview.src = '';
+    preview.style.display = 'none';
+  }
+}
+
+function onRecipeImageChange() {
+  var url = document.getElementById('recipe-image-url').value.trim();
+  var preview = document.getElementById('recipe-image-preview');
+  if (url) {
+    preview.src = url;
+    preview.style.display = 'block';
+    currentRecipe.image = url;
+  } else {
+    preview.style.display = 'none';
+    currentRecipe.image = null;
+  }
+  autoSave();
+}
+
+function handleRecipeImageUpload(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var dataUrl = e.target.result;
+    syncRecipeImageUI(dataUrl);
+    currentRecipe.image = dataUrl;
+    autoSave();
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function clearRecipeImage() {
+  syncRecipeImageUI('');
+  currentRecipe.image = null;
+  autoSave();
 }
 
 // ===================== TABS =====================
