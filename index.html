@@ -446,29 +446,64 @@ body {
 /* Instructions — red, bold */
 li.recipe-instruction {
   color: #c0392b; font-weight: 700;
-  display: flex; align-items: flex-start; gap: 10px;
+  display: flex; align-items: flex-start; gap: 12px;
   line-height: 1.55; font-size: 1em;
-  padding: 10px 0; border-bottom: 1px solid #f5f0e8;
+  padding: 11px 0; border-bottom: 1px solid #f5f0e8;
 }
 li.recipe-instruction:last-child { border-bottom: none; }
-li.recipe-instruction i { margin-top: 4px; flex-shrink: 0; font-size: 0.8em; }
+li.recipe-instruction .instr-icon {
+  flex-shrink: 0;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: #c0392b; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75em; margin-top: 2px;
+}
 
-/* Ingredients — bold name, pill qty */
+/* Ingredients — indented, icon left, name middle, qty right */
 li.recipe-ingredient {
   display: flex; align-items: center; gap: 12px;
   font-size: 1em; color: var(--ink);
-  padding: 9px 0; border-bottom: 1px solid #f5f0e8;
+  padding: 9px 0 9px 12px; border-bottom: 1px solid #f5f0e8;
 }
 li.recipe-ingredient:last-child { border-bottom: none; }
-li.recipe-ingredient i { flex-shrink: 0; font-size: 0.85em; }
-li.recipe-ingredient .ing-name { font-weight: 700; flex: 1; font-size: 1em; color: #1a1a2e; }
+li.recipe-ingredient .ing-name { font-weight: 600; flex: 1; font-size: 0.97em; color: #1a1a2e; }
 li.recipe-ingredient .ing-qty {
-  font-weight: 700; font-size: 0.92em;
-  color: #2e3a52; background: #f2ede0;
-  padding: 3px 10px; border-radius: 20px;
+  font-weight: 700; font-size: 0.91em;
+  color: #2e3a52;
   white-space: nowrap; flex-shrink: 0;
+  text-align: right;
 }
 .instruction-image { max-width: 100%; max-height: 200px; border-radius: 8px; margin-top: 10px; display: block; object-fit: cover; }
+
+/* Ingredient icon — coloured circle dot for unit, emoji for ingredient */
+.ing-icon {
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.15em;
+  line-height: 1;
+}
+.ing-icon.is-emoji { background: none; font-size: 1.35em; }
+.ing-icon.is-unit {
+  font-size: 0.72em; font-weight: 900;
+  letter-spacing: -0.5px;
+  color: #fff;
+}
+
+/* Hero image — square-ish, centered */
+.recipe-hero-img {
+  width: calc(100% - 44px);
+  max-height: 280px;
+  min-height: 160px;
+  object-fit: cover; display: block;
+  border-radius: 12px;
+  margin: 18px 22px 0;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.13);
+}
+@media (max-width: 900px) {
+  .recipe-hero-img { width: 100%; margin: 0 0 0 0; border-radius: 0; box-shadow: none; }
+}
 
 @media (max-width: 900px) {
   #output-display .recipe-title-display { font-size: 1.7em; }
@@ -1907,6 +1942,17 @@ var ING_EMOJI = (function() {
   return m;
 })();
 
+// Short abbreviation shown inside the coloured circle when no emoji is found
+function getUnitAbbr(unitKey) {
+  var map = {
+    'Tbs':'Tbs', 'Tsp':'Tsp', 'Cup':'Cup',
+    'Units':'ea', 'KG':'kg', 'GRAMS':'g',
+    'LBS':'lb', 'OZ':'oz', 'ML':'ml',
+    'Liters':'L', 'Pinch':'pch'
+  };
+  return map[unitKey] || unitKey.substring(0,3);
+}
+
 function getIngredientEmoji(name) {
   if (!name) return null;
   var lower = name.toLowerCase();
@@ -1927,17 +1973,29 @@ function generateRecipeCard() {
   var sf     = (yld && svc && yld > 0) ? svc / yld : 1;
   var scaled = (yld && svc && yld !== svc);
 
-  var out = '<div class="recipe-title-display">' + escapeHtml(title) + '</div>';
+  var out = '';
+
+  // Hero image
+  if (currentRecipe.image) {
+    out += '<img src="' + escapeHtml(currentRecipe.image) + '" class="recipe-hero-img" alt="' + escapeHtml(title) + '">';
+  }
+
+  // Title + yield
+  out += '<div class="recipe-card-meta">';
+  out += '<div class="recipe-title-display">' + escapeHtml(title) + '</div>';
   if (yld) {
     out += '<div class="recipe-yield-display">Serves: <strong>' + yld + '</strong>';
     if (scaled) out += ' &mdash; scaled to <strong>' + svc + '</strong>';
     out += '</div>';
   }
+  out += '</div>';
+
   if (scaled) {
     out += '<div class="scale-notice no-print"><i class="fas fa-info-circle"></i> Ingredients scaled &times;' + sf.toFixed(2) + ' for <strong>' + svc + ' people</strong>.</div>';
   }
+
   if (currentRecipe.tasks.length === 0) {
-    out += '<p class="empty-state" style="margin-top:14px;">Add a task and items to see the recipe.</p>';
+    out += '<p class="empty-state" style="margin:14px 22px;">Add a task and items to see the recipe.</p>';
     return out;
   }
 
@@ -1949,7 +2007,7 @@ function generateRecipeCard() {
 
     task.items.forEach(function(item) {
       if (item.type === 'instruction') {
-        out += '<li class="recipe-instruction"><i class="fa-solid fa-chevron-right"></i><span>' + escapeHtml(item.text);
+        out += '<li class="recipe-instruction"><span class="instr-icon"><i class="fa-solid fa-chevron-right"></i></span><span>' + escapeHtml(item.text);
         if (item.imageUrl) out += '<br><img src="' + escapeHtml(item.imageUrl) + '" class="instruction-image" alt="">';
         out += '</span></li>';
       } else {
@@ -1957,17 +2015,19 @@ function generateRecipeCard() {
         var qty  = item.quantity;
         if (sf !== 1) qty = parseFloat((item.quantity * sf).toFixed(3)).toString().replace(/\.?0+$/, '');
         var emoji = getIngredientEmoji(item.ingredient);
-        var iconHtml = emoji
-          ? '<div class="ing-emoji">' + emoji + '</div>'
-          : '<div class="ing-unit-badge" style="background:' + mt.color + '">' + escapeHtml(mt.name.substring(0,3)) + '</div>';
-        out += '<li class="recipe-ingredient">' +
-               iconHtml +
-               '<div class="ing-details">' +
-               '<span class="ing-name">' + escapeHtml(item.ingredient) + '</span>' +
-               '<span class="ing-qty">' + qty + ' ' + escapeHtml(mt.name) + '</span>' +
-               '</div>' +
-               '<div class="ing-unit-badge" style="background:' + mt.color + ';margin-left:auto;flex-shrink:0;">' + escapeHtml(mt.name.substring(0,3)) + '</div>' +
-               '</li>';
+        var unitAbbr = getUnitAbbr(item.unitKey);
+        out += '<li class="recipe-ingredient">';
+        // Left icon: emoji if we have one, coloured unit circle if not
+        if (emoji) {
+          out += '<span class="ing-icon is-emoji">' + emoji + '</span>';
+        } else {
+          out += '<span class="ing-icon is-unit" style="background:' + mt.color + ';">' + unitAbbr + '</span>';
+        }
+        // Middle: ingredient name
+        out += '<span class="ing-name">' + escapeHtml(item.ingredient) + '</span>';
+        // Right: qty + unit name — plain text, no pill/oval
+        out += '<span class="ing-qty">' + qty + ' <span style="color:' + mt.color + ';font-weight:700;">' + escapeHtml(mt.name) + '</span></span>';
+        out += '</li>';
       }
     });
 
