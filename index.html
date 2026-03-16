@@ -384,6 +384,21 @@ body {
 .editable-item .drag-handle { color: #6aaa96; cursor: grab; font-size: 0.82em; flex-shrink: 0;
   touch-action: none; user-select: none; -webkit-user-select: none; }
 
+
+/* Mobile: stack ingredient inputs vertically so dropdown doesn't go off screen */
+@media (max-width: 900px) {
+  #ingredient-panel .form-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  #ingredient-panel .form-row input[type="number"] {
+    max-width: 100%;
+  }
+  #ingredient-panel .form-row select {
+    max-width: 100%;
+  }
+}
+
 /* Bigger, easier-to-hit drag handles on mobile */
 @media (max-width: 900px) {
   .drag-handle {
@@ -1100,6 +1115,7 @@ li.recipe-taskref .ref-qty {
 
   #main { margin-left: 0; padding: 14px; min-height: auto; }
   #settings-card .card-body { grid-template-columns: 1fr 1fr; }
+  #settings-card .card-body .field-group:first-child { grid-column: span 2; }
   .sidebar-drag-divider { display: none; }
   #tasks-panel { height: auto !important; flex: none !important; }
 
@@ -1338,14 +1354,21 @@ li.recipe-taskref .ref-qty {
         <div class="input-panel" id="instruction-panel">
           <h4><i class="fa-solid fa-list-check"></i> New Instruction</h4>
           <div class="form-row" style="flex-direction:column; align-items:stretch;">
-            <div style="display:flex;gap:8px;align-items:flex-start;">
-              <textarea id="instruction-text" placeholder="e.g., Preheat oven to 350°F (175°C)…" style="flex:1;"></textarea>
+            <textarea id="instruction-text" placeholder="e.g., Preheat oven to 350°F (175°C)…"></textarea>
+            <input type="url" id="instruction-image-url" placeholder="Optional: image URL for this step" style="margin-top:6px;">
+          </div>
+          <!-- Voice — same style as ingredient voice -->
+          <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);">
+            <div style="display:flex;align-items:center;gap:10px;">
               <button class="voice-btn" id="voice-instr-btn" onclick="toggleVoiceInstruction()" title="Speak your instruction">
                 <i class="fa-solid fa-microphone"></i>
               </button>
+              <div>
+                <div style="font-size:0.78em;font-weight:700;color:var(--ink);">Voice Mode</div>
+                <div style="font-size:0.72em;color:var(--ink-light);">Tap mic, speak your instruction, then tap Stop — it fills in automatically</div>
+              </div>
             </div>
             <div class="voice-status" id="voice-instr-status"></div>
-            <input type="url" id="instruction-image-url" placeholder="Optional: image URL for this step" style="margin-top:6px;">
           </div>
           <div style="display:flex; justify-content:flex-end; margin-top:10px;">
             <button class="btn btn-warn" onclick="submitInstruction()"><i class="fa-solid fa-circle-plus"></i> Add Instruction</button>
