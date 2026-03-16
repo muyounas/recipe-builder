@@ -1115,7 +1115,10 @@ li.recipe-taskref .ref-qty {
 
   #main { margin-left: 0; padding: 14px; min-height: auto; }
   #settings-card .card-body { grid-template-columns: 1fr 1fr; }
-  #settings-card .card-body .field-group:first-child { grid-column: span 2; }
+  /* Title always full width on its own line */
+  #settings-card .card-body .field-group:first-child { grid-column: 1 / -1; }
+  /* Photo field also full width */
+  #settings-card .card-body .field-group:last-child { grid-column: 1 / -1; }
   .sidebar-drag-divider { display: none; }
   #tasks-panel { height: auto !important; flex: none !important; }
 
