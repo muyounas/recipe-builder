@@ -156,6 +156,7 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
+  user-select: none; -webkit-user-select: none;
   background: rgba(240,201,110,0.07);
   border: 1px solid rgba(240,201,110,0.14);
   border-radius: 7px;
@@ -169,7 +170,8 @@ body {
 .task-item:hover { background: rgba(240,201,110,0.14); }
 .task-item.active { background: rgba(217,97,76,0.32); border-color: rgba(217,97,76,0.55); color: #fff; }
 .task-item .task-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.task-item .drag-handle { color: rgba(240,201,110,0.32); cursor: grab; font-size: 0.82em; }
+.task-item .drag-handle { color: rgba(240,201,110,0.32); cursor: grab; font-size: 0.82em;
+  touch-action: none; user-select: none; -webkit-user-select: none; }
 .task-item .t-edit { color: #f0c96e; opacity: 0.55; cursor: pointer; font-size: 0.78em; }
 .task-item .t-edit:hover { opacity: 1; }
 .task-item .t-del { color: #f08080; opacity: 0.55; cursor: pointer; font-size: 0.78em; }
@@ -368,6 +370,7 @@ body {
 
 .editable-item {
   display: flex; align-items: center; gap: 7px;
+  -webkit-user-select: none; user-select: none;
   background: var(--cream); border: 1px solid var(--border);
   border-radius: 8px; padding: 7px 9px;
 }
@@ -378,7 +381,8 @@ body {
   background: #fff; outline: none;
 }
 .editable-item input:focus, .editable-item textarea:focus, .editable-item select:focus { border-color: var(--sage-deep); }
-.editable-item .drag-handle { color: #6aaa96; cursor: grab; font-size: 0.82em; flex-shrink: 0; }
+.editable-item .drag-handle { color: #6aaa96; cursor: grab; font-size: 0.82em; flex-shrink: 0;
+  touch-action: none; user-select: none; -webkit-user-select: none; }
 .editable-item .del-item { color: var(--red-light); cursor: pointer; opacity: 0.60; font-size: 0.85em; flex-shrink: 0; }
 .editable-item .del-item:hover { opacity: 1; }
 .item-badge { font-size: 0.68em; font-weight: 700; padding: 2px 6px; border-radius: 4px; white-space: nowrap; letter-spacing: 0.5px; text-transform: uppercase; flex-shrink: 0; }
@@ -2904,8 +2908,20 @@ function initTaskSortable() {
   var el = document.getElementById('tasks-container');
   if (el && !taskSortable) {
     taskSortable = Sortable.create(el, {
-      animation: 150, handle: '.drag-handle',
+      animation: 150,
+      handle: '.drag-handle',
+      forceFallback: true,       // use JS fallback — more reliable on mobile
+      fallbackTolerance: 3,      // px of movement before drag starts
+      delay: 0,                  // no delay — instant grab
+      delayOnTouchOnly: false,
+      touchStartThreshold: 3,    // px movement needed to start drag vs tap
+      onStart: function() {
+        document.body.style.userSelect = 'none';
+        document.body.style.webkitUserSelect = 'none';
+      },
       onEnd: function(evt) {
+        document.body.style.userSelect = '';
+        document.body.style.webkitUserSelect = '';
         var moved = currentRecipe.tasks.splice(evt.oldIndex, 1)[0];
         currentRecipe.tasks.splice(evt.newIndex, 0, moved);
         generateAndDisplay(); updateTaskListUI();
@@ -2919,8 +2935,20 @@ function initItemSortable() {
   if (!el) return;
   if (itemSortable) { itemSortable.destroy(); itemSortable = null; }
   itemSortable = Sortable.create(el, {
-    animation: 150, handle: '.drag-handle',
+    animation: 150,
+    handle: '.drag-handle',
+    forceFallback: true,
+    fallbackTolerance: 3,
+    delay: 0,
+    delayOnTouchOnly: false,
+    touchStartThreshold: 3,
+    onStart: function() {
+      document.body.style.userSelect = 'none';
+      document.body.style.webkitUserSelect = 'none';
+    },
     onEnd: function(evt) {
+      document.body.style.userSelect = '';
+      document.body.style.webkitUserSelect = '';
       var task = getCurrentTask();
       if (task) {
         var moved = task.items.splice(evt.oldIndex, 1)[0];
