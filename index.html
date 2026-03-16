@@ -383,6 +383,16 @@ body {
 .editable-item input:focus, .editable-item textarea:focus, .editable-item select:focus { border-color: var(--sage-deep); }
 .editable-item .drag-handle { color: #6aaa96; cursor: grab; font-size: 0.82em; flex-shrink: 0;
   touch-action: none; user-select: none; -webkit-user-select: none; }
+
+/* Bigger, easier-to-hit drag handles on mobile */
+@media (max-width: 900px) {
+  .drag-handle {
+    font-size: 1.15em !important;
+    padding: 10px 12px;
+    margin: -10px -6px;
+    color: rgba(240,201,110,0.55) !important;
+  }
+}
 .editable-item .del-item { color: var(--red-light); cursor: pointer; opacity: 0.60; font-size: 0.85em; flex-shrink: 0; }
 .editable-item .del-item:hover { opacity: 1; }
 .item-badge { font-size: 0.68em; font-weight: 700; padding: 2px 6px; border-radius: 4px; white-space: nowrap; letter-spacing: 0.5px; text-transform: uppercase; flex-shrink: 0; }
@@ -2910,11 +2920,10 @@ function initTaskSortable() {
     taskSortable = Sortable.create(el, {
       animation: 150,
       handle: '.drag-handle',
-      forceFallback: true,       // use JS fallback — more reliable on mobile
-      fallbackTolerance: 3,      // px of movement before drag starts
-      delay: 0,                  // no delay — instant grab
-      delayOnTouchOnly: false,
-      touchStartThreshold: 3,    // px movement needed to start drag vs tap
+      forceFallback: false,
+      delay: 150,
+      delayOnTouchOnly: true,
+      touchStartThreshold: 5,
       onStart: function() {
         document.body.style.userSelect = 'none';
         document.body.style.webkitUserSelect = 'none';
@@ -2937,11 +2946,10 @@ function initItemSortable() {
   itemSortable = Sortable.create(el, {
     animation: 150,
     handle: '.drag-handle',
-    forceFallback: true,
-    fallbackTolerance: 3,
-    delay: 0,
-    delayOnTouchOnly: false,
-    touchStartThreshold: 3,
+    forceFallback: false,
+    delay: 150,
+    delayOnTouchOnly: true,
+    touchStartThreshold: 5,
     onStart: function() {
       document.body.style.userSelect = 'none';
       document.body.style.webkitUserSelect = 'none';
