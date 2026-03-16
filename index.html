@@ -907,9 +907,7 @@ li.recipe-ingredient .ing-qty  { color: var(--ink); font-size: 0.92em; font-weig
 #main.sidebar-hidden {
   margin-left: 0;
 }
-#sidebar-toggle-btn.visible {
-  display: flex;
-}
+#sidebar-toggle-btn.visible { display: none; } /* peek bar used instead */
 
 /* Recipe thumbnail in saved list */
 .saved-item-thumb {
@@ -1023,13 +1021,18 @@ li.recipe-taskref .ref-qty {
 
 @media print {
   #sidebar, .header-right, .output-actions, .tab-bar, .scale-notice, .no-print { display: none !important; }
+  /* Hide the card header (scroll icon + "Recipe Card" title) — keep only the recipe content */
+  #output-card .card-header { display: none !important; }
   #main { padding: 0; margin-left: 0; }
   .tab-pane { display: flex !important; }
   #tab-edit { display: none !important; }
-  #settings-card, #editor-card { display: none !important; }
+  #settings-card, #editor-card, #tasks-card { display: none !important; }
   .card { box-shadow: none; border: none; }
   body { background: #fff; }
   #output-display { font-family: 'Inter', system-ui, sans-serif; }
+  /* Make task blocks full width on print */
+  .task-block { margin: 0 0 16px; }
+  .recipe-output-header { padding: 16px 0 12px; }
 }
 
 @media (max-width: 900px) {
@@ -1128,11 +1131,6 @@ li.recipe-taskref .ref-qty {
   </div>
 </div>
 
-<!-- SIDEBAR TOGGLE (shown when sidebar is collapsed) -->
-<button id="sidebar-toggle-btn" onclick="toggleSidebar()" title="Show/hide sidebar">
-  <i class="fa-solid fa-bars"></i>
-</button>
-
 <!-- SIDEBAR -->
 <aside id="sidebar" class="no-print">
   <div class="sidebar-brand" style="display:flex;align-items:center;justify-content:space-between;">
@@ -1226,7 +1224,7 @@ li.recipe-taskref .ref-qty {
         <h2><i class="fa-solid fa-scroll"></i> <span id="recipe-card-title-display">Recipe Card</span></h2>
         <div class="output-actions no-print">
           <button class="btn btn-muted btn-sm" onclick="printSingleGrocery()"><i class="fa-solid fa-cart-shopping"></i> Grocery List</button>
-          <button class="btn btn-muted btn-sm" onclick="emailRecipe()"><i class="fa-solid fa-envelope"></i> Email</button>
+          <button class="btn btn-muted btn-sm" onclick="downloadPDF()"><i class="fa-solid fa-file-pdf"></i> Download PDF</button>
           <button class="btn btn-muted btn-sm" onclick="window.print()"><i class="fa-solid fa-print"></i> Print</button>
         </div>
       </div>
@@ -2280,26 +2278,14 @@ function downloadRecipeAsJSON() {
 }
 
 // ===================== EMAIL =====================
-function emailRecipe() {
-  var title = currentRecipe.title || 'Untitled Recipe';
-  var yld   = currentRecipe.yield;
-  var svc   = currentRecipe.servingSize;
-  var sf    = (yld && svc && yld > 0) ? svc / yld : 1;
-  var body  = 'RECIPE: ' + title + '\n\n';
-  currentRecipe.tasks.forEach(function(task) {
-    body += '--- ' + task.name.toUpperCase() + ' ---\n';
-    task.items.forEach(function(item) {
-      if (item.type === 'instruction') {
-        body += '-> ' + item.text + '\n';
-      } else {
-        var qty = parseFloat((item.quantity * sf).toFixed(3)).toString().replace(/\.?0+$/, '');
-        body += '* ' + item.ingredient + ': ' + qty + ' ' + ((MEASUREMENT_TYPES[item.unitKey] || {}).name || item.unitKey) + '\n';
-      }
-    });
-    body += '\n';
-  });
-  if (yld && svc && yld !== svc) body += '(Scaled to serve ' + svc + '. Original: ' + yld + ')\n';
-  window.location.href = 'mailto:?subject=' + encodeURIComponent('Recipe: ' + title) + '&body=' + encodeURIComponent(body);
+function downloadPDF() {
+  // Use the browser's print-to-PDF — most reliable cross-browser approach
+  // The @media print CSS already hides all UI chrome and shows only the clean recipe card
+  var title = currentRecipe.title || 'Recipe';
+  var oldTitle = document.title;
+  document.title = title; // sets the default PDF filename
+  window.print();
+  document.title = oldTitle;
 }
 
 // ===================== SHARE TEXT =====================
