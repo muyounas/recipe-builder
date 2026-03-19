@@ -3074,6 +3074,91 @@ function populateMeasurementDropdown() {
   });
 }
 
+// ===================== ANTHROPIC API HELPER =====================
+function anthropicFetch(body) {
+  return fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify(body)
+  });
+}
+
+function parseImportResponse(data) {
+  var fullText = '';
+  (data.content || []).forEach(function(b) { if (b.type === 'text') fullText += b.text; });
+  fullText = fullText.replace(/```json|```/g, '').trim();
+  // Extract outermost JSON object
+  var depth = 0, start = -1, end = -1;
+  for (var i = 0; i < fullText.length; i++) {
+    if (fullText[i] === '{') { if (depth === 0) start = i; depth++; }
+    else if (fullText[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
+  }
+  if (start === -1 || end === -1) throw new Error('No JSON found in response. Got: ' + fullText.substring(0, 200));
+  var parsed = JSON.parse(fullText.substring(start, end + 1));
+  if (parsed.error) throw new Error(parsed.error);
+  if (!parsed.title || !Array.isArray(parsed.tasks)) throw new Error('Incomplete recipe data. Missing title or tasks.');
+  return parsed;
+}
+
+function populateRecipeFromParsed(parsed, statusEl, btn, inputToClear, btnResetLabel) {
+  clearTimeout(autoSaveTimer);
+  currentRecipe = {
+    id: Date.now(),
+    title: parsed.title || 'Imported Recipe',
+    yield: parsed.yield || null,
+    servingSize: null,
+    tasks: []
+  };
+  taskIdCounter = 1;
+  itemIdCounter = 1;
+  (parsed.tasks || []).forEach(function(task) {
+    var newTask = { id: taskIdCounter++, name: task.name || 'Task', items: [] };
+    (task.items || []).forEach(function(item) {
+      if (item.type === 'ingredient') {
+        newTask.items.push({
+          id: itemIdCounter++, type: 'ingredient',
+          ingredient: item.ingredient || '',
+          quantity: typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 1,
+          unitKey: item.unitKey || 'Units'
+        });
+      } else if (item.type === 'instruction') {
+        newTask.items.push({
+          id: itemIdCounter++, type: 'instruction',
+          text: item.text || '', imageUrl: item.imageUrl || ''
+        });
+      }
+    });
+    currentRecipe.tasks.push(newTask);
+  });
+
+  currentTaskId = currentRecipe.tasks.length > 0 ? currentRecipe.tasks[0].id : null;
+  document.getElementById('recipe-title').value = currentRecipe.title;
+  document.getElementById('recipe-yield').value = currentRecipe.yield || '';
+  document.getElementById('serving-size').value = '';
+  syncRecipeImageUI('');
+  updateTaskListUI(); renderActiveTaskItems(); generateAndDisplay(); updateSavedRecipesUI();
+  setAutoSaveStatus('saved');
+  autoSave();
+
+  var taskCount = currentRecipe.tasks.length;
+  var ingCount  = currentRecipe.tasks.reduce(function(s,t) { return s + t.items.filter(function(i) { return i.type==='ingredient'; }).length; }, 0);
+  var stepCount = currentRecipe.tasks.reduce(function(s,t) { return s + t.items.filter(function(i) { return i.type==='instruction'; }).length; }, 0);
+
+  if (statusEl) {
+    statusEl.className = 'ai-status success';
+    statusEl.style.display = 'flex';
+    statusEl.innerHTML = '<i class="fa-solid fa-circle-check"></i><span><strong>"' + escapeHtml(currentRecipe.title) + '"</strong> imported — ' + taskCount + ' tasks, ' + ingCount + ' ingredients, ' + stepCount + ' steps.</span>';
+  }
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> ' + (btnResetLabel || 'Build'); }
+  if (inputToClear) inputToClear.value = '';
+  toast('Recipe imported!');
+  setTimeout(function() { closeAiImportModal(); switchTab('card'); }, 2000);
+}
+
 // ===================== AI VIDEO IMPORT =====================
 function openAiImportModal() {
   var statusEl = document.getElementById('ai-status');
@@ -3294,6 +3379,72 @@ function importFromImage() {
   });
 }
 
+
+
+// ── SHARED IMPORT HELPERS ─────────────────────────────────────────────────────
+function parseImportResponse(data) {
+  var fullText = '';
+  (data.content || []).forEach(function(b) { if (b.type === 'text') fullText += b.text; });
+  fullText = fullText.replace(/```json|```/g, '').trim();
+  // Extract outermost JSON object
+  var depth = 0, start = -1, end = -1;
+  for (var i = 0; i < fullText.length; i++) {
+    if (fullText[i] === '{') { if (depth === 0) start = i; depth++; }
+    else if (fullText[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
+  }
+  if (start === -1 || end === -1) throw new Error('No JSON in response. Got: ' + fullText.substring(0, 200));
+  var parsed = JSON.parse(fullText.substring(start, end + 1));
+  if (parsed.error) throw new Error(parsed.error);
+  if (!parsed.title || !Array.isArray(parsed.tasks)) throw new Error('Incomplete recipe data.');
+  return parsed;
+}
+
+function populateRecipeFromParsed(parsed, statusEl, btn, inputToClear, btnResetLabel) {
+  clearTimeout(autoSaveTimer);
+  currentRecipe = {
+    id: Date.now(),
+    title: parsed.title || 'Imported Recipe',
+    yield: parsed.yield || null,
+    servingSize: null,
+    tasks: []
+  };
+  taskIdCounter = 1;
+  itemIdCounter = 1;
+  (parsed.tasks || []).forEach(function(task) {
+    var newTask = { id: taskIdCounter++, name: task.name || 'Task', items: [] };
+    (task.items || []).forEach(function(item) {
+      if (item.type === 'ingredient') {
+        newTask.items.push({
+          id: itemIdCounter++, type: 'ingredient',
+          ingredient: item.ingredient || '',
+          quantity: typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 1,
+          unitKey: item.unitKey || 'Units'
+        });
+      } else if (item.type === 'instruction') {
+        newTask.items.push({ id: itemIdCounter++, type: 'instruction', text: item.text || '', imageUrl: item.imageUrl || '' });
+      }
+    });
+    currentRecipe.tasks.push(newTask);
+  });
+  currentTaskId = currentRecipe.tasks.length > 0 ? currentRecipe.tasks[0].id : null;
+  document.getElementById('recipe-title').value  = currentRecipe.title;
+  document.getElementById('recipe-yield').value  = currentRecipe.yield || '';
+  document.getElementById('serving-size').value  = '';
+  syncRecipeImageUI('');
+  updateTaskListUI(); renderActiveTaskItems(); generateAndDisplay(); updateSavedRecipesUI();
+  var tc = currentRecipe.tasks.length;
+  var ic = currentRecipe.tasks.reduce(function(s,t) { return s + t.items.filter(function(i) { return i.type==='ingredient'; }).length; }, 0);
+  var sc = currentRecipe.tasks.reduce(function(s,t) { return s + t.items.filter(function(i) { return i.type==='instruction'; }).length; }, 0);
+  statusEl.className = 'ai-status success';
+  statusEl.style.display = 'flex';
+  statusEl.innerHTML = '<i class="fa-solid fa-circle-check"></i><span><strong>"' + escapeHtml(currentRecipe.title) + '"</strong> imported \u2014 ' + tc + ' tasks, ' + ic + ' ingredients, ' + sc + ' steps.</span>';
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> ' + (btnResetLabel || 'Build');
+  if (inputToClear) inputToClear.value = '';
+  toast('Recipe imported!');
+  autoSave();
+  setTimeout(function() { closeAiImportModal(); switchTab('card'); }, 2000);
+}
 
 // ===================== SIDEBAR DRAG RESIZE =====================
 function initSidebarResize() {
