@@ -2353,17 +2353,47 @@ function handleFileUpload(event) {
 
 // ===================== DOWNLOAD =====================
 function downloadRecipeAsJSON() {
+  if (!currentRecipe || !currentRecipe.title) { toast('No recipe loaded.'); return; }
+  // Always flush UI state first so title/yield/image are current
   updateRecipeStateFromUI();
-  var copy = JSON.parse(JSON.stringify(currentRecipe));
+
+  // If we have a db ID, fetch the absolute latest version from Supabase before downloading
+  if (currentRecipe._db_id && currentUser) {
+    toast('Fetching latest version…');
+    sb.from('recipes')
+      .select('data')
+      .eq('id', currentRecipe._db_id)
+      .eq('user_id', currentUser.id)
+      .single()
+      .then(function(result) {
+        if (result.error || !result.data) {
+          // Fallback to in-memory if fetch fails
+          doDownload(currentRecipe);
+        } else {
+          var fresh = typeof result.data.data === 'string'
+            ? JSON.parse(result.data.data)
+            : JSON.parse(JSON.stringify(result.data.data));
+          doDownload(fresh);
+        }
+      });
+  } else {
+    // No DB ID yet — download what's in memory (unsaved recipe)
+    doDownload(currentRecipe);
+  }
+}
+
+function doDownload(recipe) {
+  var copy = JSON.parse(JSON.stringify(recipe));
+  delete copy._db_id;
   delete copy.id;
   var blob = new Blob([JSON.stringify(copy, null, 2)], { type: 'application/json' });
   var url  = URL.createObjectURL(blob);
   var a    = document.createElement('a');
   a.href = url;
-  a.download = currentRecipe.title.replace(/\s+/g, '_') + '_recipe.json';
+  a.download = (copy.title || 'recipe').replace(/\s+/g, '_') + '_recipe.json';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  toast('Recipe downloaded!');
+  toast('"' + (copy.title || 'Recipe') + '" downloaded!');
 }
 
 // ===================== EMAIL =====================
