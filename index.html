@@ -3075,14 +3075,21 @@ function populateMeasurementDropdown() {
 }
 
 // ===================== ANTHROPIC API HELPER =====================
+var ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+
 function anthropicFetch(body) {
-  return fetch('https://api.anthropic.com/v1/messages', {
+  var isLocal = window.location.protocol === 'file:' ||
+                window.location.hostname === 'localhost' ||
+                window.location.hostname === '127.0.0.1';
+  var url = isLocal
+    ? 'https://corsproxy.io/?' + encodeURIComponent(ANTHROPIC_API_URL)
+    : ANTHROPIC_API_URL;
+  return fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
 }
-
 function parseImportResponse(data) {
   var fullText = '';
   (data.content || []).forEach(function(b) { if (b.type === 'text') fullText += b.text; });
