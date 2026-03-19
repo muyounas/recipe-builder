@@ -3121,76 +3121,34 @@ function loadImageFile(file) {
 }
 
 // ── SHARED HELPERS ────────────────────────────────────────────────────────────
-var IMPORT_SYSTEM_PROMPT = 'You are an expert recipe extraction and structuring assistant.\nRead any recipe source (URL, image, or text) and produce a perfectly structured recipe JSON.\n\nSTRUCTURING RULES — follow these strictly:\n1. Analyze the full recipe first to understand all components.\n2. Group the recipe into 1-6 logical TASKS (e.g. Marinade, Batter, Sauce, Fry, Assembly).\n   - Name tasks with a number prefix: "1. Make the Marinade", "2. Prepare the Batter".\n   - Each task = one distinct preparation stage, NOT just "Ingredients" and "Instructions".\n3. INTERLEAVE instructions and ingredients within each task:\n   - Start with a context instruction: "In a bowl, combine the following:"\n   - Immediately follow with the ingredients for that step\n   - Then add the next action instruction for that task\n   - NEVER put all ingredients at top and all instructions at bottom\n4. Include every ingredient and every step — do not skip or summarize.\n5. unitKey must be one of: Tbs, Tsp, Cup, Units, KG, GRAMS, LBS, OZ, ML, Liters, Pinch\n6. quantity must be a plain number (1/2 = 0.5, 1/4 = 0.25)\n7. yield must be a plain number.\n\nRespond ONLY with a single valid JSON object — no markdown, no explanation.\nExample structure to follow:\n{\n  "title": "Recipe Name",\n  "yield": 4,\n  "tasks": [\n    {\n      "name": "1. Task Name",\n      "items": [\n        {"type":"instruction","text":"In a bowl, combine the following:","imageUrl":""},\n        {"type":"ingredient","ingredient":"Flour","quantity":2,"unitKey":"Cup"},\n        {"type":"ingredient","ingredient":"Salt","quantity":0.5,"unitKey":"Tsp"},\n        {"type":"instruction","text":"Mix well and set aside.","imageUrl":""}\n      ]\n    },\n    {\n      "name": "2. Next Task",\n      "items": [\n        {"type":"instruction","text":"Heat oil in a pan, then add:","imageUrl":""},\n        {"type":"ingredient","ingredient":"Onion","quantity":1,"unitKey":"Units"},\n        {"type":"instruction","text":"Saute until golden.","imageUrl":""}\n      ]\n    }\n  ]\n}\n\nIf no recipe can be found, return exactly: {"error":"No recipe found."}';
+var IMPORT_SYSTEM_PROMPT = [
+  'You are an expert recipe extraction and structuring assistant.',
+  'Read the provided recipe content and produce a perfectly structured JSON.',
+  '',
+  'TASK STRUCTURING — follow exactly:',
+  '1. Identify 1-6 distinct preparation stages and name each as a task.',
+  '   Example task names: "1. Marinate Chicken", "2. Make Batter", "3. Prepare Sauce", "4. Fry", "5. Assembly"',
+  '   NEVER use generic names like "Ingredients" or "Steps".',
+  '2. Within each task, INTERLEAVE instructions and ingredients — never separate them:',
+  '   - instruction: sets the scene ("In a medium bowl, combine:")',
+  '   - ingredient: immediately follows the instruction that uses it',
+  '   - instruction: next action ("Mix well and set aside.")',
+  '   - This pattern repeats throughout the task.',
+  '3. Include EVERY ingredient and EVERY step. Do not skip or summarize.',
+  '4. unitKey must be exactly one of: Tbs Tsp Cup Units KG GRAMS LBS OZ ML Liters Pinch',
+  '5. quantity must be a plain number: 1/2=0.5, 1/4=0.25, 3/4=0.75, 1/3=0.333',
+  '6. yield must be a plain number.',
+  '',
+  'Respond ONLY with valid JSON, no markdown fences, no explanation:',
+  '{"title":"string","yield":4,"tasks":[{"name":"1. Task","items":[',
+  '{"type":"instruction","text":"In a bowl, mix:","imageUrl":""},',
+  '{"type":"ingredient","ingredient":"Flour","quantity":2,"unitKey":"Cup"},',
+  '{"type":"instruction","text":"Set aside.","imageUrl":""}',
+  ']}]}',
+  '',
+  'If no recipe found: {"error":"No recipe found."}'
+].join('\n');
 
-function parseImportResponse(data) {
-  var fullText = '';
-  (data.content || []).forEach(function(b) { if (b.type === 'text') fullText += b.text; });
-  fullText = fullText.replace(/```json|```/g, '').trim();
-  var depth = 0, start = -1, end = -1;
-  for (var i = 0; i < fullText.length; i++) {
-    if (fullText[i] === '{') { if (depth === 0) start = i; depth++; }
-    else if (fullText[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
-  }
-  if (start === -1 || end === -1) throw new Error('No JSON in response. Got: ' + fullText.substring(0, 200));
-  var parsed = JSON.parse(fullText.substring(start, end + 1));
-  if (parsed.error) throw new Error(parsed.error);
-  if (!parsed.title || !Array.isArray(parsed.tasks)) throw new Error('Incomplete recipe data.');
-  return parsed;
-}
-
-function populateRecipeFromParsed(parsed, statusEl, btn, inputToClear, btnResetLabel) {
-  clearTimeout(autoSaveTimer);
-  currentRecipe = {
-    id: Date.now(),
-    title: parsed.title || 'Imported Recipe',
-    yield: parsed.yield || null,
-    servingSize: null,
-    tasks: []
-  };
-  taskIdCounter = 1;
-  itemIdCounter = 1;
-  (parsed.tasks || []).forEach(function(task) {
-    var newTask = { id: taskIdCounter++, name: task.name || 'Task', items: [] };
-    (task.items || []).forEach(function(item) {
-      if (item.type === 'ingredient') {
-        newTask.items.push({
-          id: itemIdCounter++, type: 'ingredient',
-          ingredient: item.ingredient || '',
-          quantity: typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 1,
-          unitKey: item.unitKey || 'Units'
-        });
-      } else if (item.type === 'instruction') {
-        newTask.items.push({
-          id: itemIdCounter++, type: 'instruction',
-          text: item.text || '', imageUrl: item.imageUrl || ''
-        });
-      }
-    });
-    currentRecipe.tasks.push(newTask);
-  });
-
-  currentTaskId = currentRecipe.tasks.length > 0 ? currentRecipe.tasks[0].id : null;
-  document.getElementById('recipe-title').value = currentRecipe.title;
-  document.getElementById('recipe-yield').value = currentRecipe.yield || '';
-  document.getElementById('serving-size').value = '';
-  updateTaskListUI(); renderActiveTaskItems(); generateAndDisplay(); updateSavedRecipesUI();
-
-  var taskCount = currentRecipe.tasks.length;
-  var ingCount  = currentRecipe.tasks.reduce(function(s,t) { return s + t.items.filter(function(i) { return i.type==='ingredient'; }).length; }, 0);
-  var stepCount = currentRecipe.tasks.reduce(function(s,t) { return s + t.items.filter(function(i) { return i.type==='instruction'; }).length; }, 0);
-
-  statusEl.className = 'ai-status success';
-  statusEl.style.display = 'flex';
-  statusEl.innerHTML = '<i class="fa-solid fa-circle-check"></i><span><strong>"' + escapeHtml(currentRecipe.title) + '"</strong> imported \u2014 ' + taskCount + ' tasks, ' + ingCount + ' ingredients, ' + stepCount + ' steps.</span>';
-  btn.disabled = false;
-  btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> ' + (btnResetLabel || 'Build');
-  if (inputToClear) inputToClear.value = '';
-  toast('Recipe imported!');
-  setTimeout(function() { closeAiImportModal(); switchTab('card'); }, 2000);
-}
-
-// ── IMPORT FROM URL ───────────────────────────────────────────────────────────
 function importFromVideo() {
   var urlInput = document.getElementById('ai-video-url');
   var url = urlInput.value.trim();
@@ -3199,74 +3157,65 @@ function importFromVideo() {
   if (!url) { toast('Please paste a URL first.'); return; }
 
   btn.disabled = true;
-  btn.innerHTML = '<span class="ai-spinner"></span> Importing\u2026';
+  btn.innerHTML = '<span class="ai-spinner"></span> Importing…';
   statusEl.className = 'ai-status loading';
-  statusEl.innerHTML = '<span class="ai-spinner"></span><span>Fetching recipe page\u2026</span>';
+  statusEl.innerHTML = '<span class="ai-spinner"></span><span>Reading page…</span>';
   statusEl.style.display = 'flex';
 
-  // Step 1: Use Jina AI reader to get clean text from any URL
-  // r.jina.ai prepends to any URL and returns clean readable markdown — no API key needed
-  // It handles paywalls, SPAs, and sites that block scrapers
-  var jinaUrl = 'https://r.jina.ai/' + url;
-
-  fetch(jinaUrl, {
-    headers: {
-      'Accept': 'text/plain',
-      'X-Return-Format': 'text'
-    }
-  })
-  .then(function(res) {
-    if (!res.ok) throw new Error('fetch_failed');
-    return res.text();
-  })
-  .then(function(pageText) {
-    // Trim to ~15000 chars focused on recipe content
-    if (pageText.length > 15000) {
-      var idx = pageText.search(/ingredient|recipe|method|instruction|preparation/i);
-      if (idx > 1000) pageText = pageText.substring(Math.max(0, idx - 200));
-      pageText = pageText.substring(0, 15000);
-    }
-
-    statusEl.innerHTML = '<span class="ai-spinner"></span><span>Structuring recipe\u2026</span>';
-
-    // Step 2: Single Claude call with clean text — fast, no loops
-    return anthropicFetch({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4000,
-      system: IMPORT_SYSTEM_PROMPT,
-      messages: [{
-        role: 'user',
-        content: 'Here is the recipe page content:\n\n' + pageText + '\n\nExtract and structure the full recipe from the above.'
-      }]
-    });
-  })
-  .then(function(res) {
-    if (!res.ok) return res.json().then(function(e) {
-      throw new Error('API ' + res.status + ': ' + (e.error && e.error.message ? e.error.message : JSON.stringify(e)));
-    });
-    return res.json();
-  })
-  .then(parseImportResponse)
-  .then(function(p) { populateRecipeFromParsed(p, statusEl, btn, urlInput, 'Build'); })
-  .catch(function(err) {
-    // If Jina fetch failed, fall back to asking Claude directly with URL
-    if (err.message === 'fetch_failed' || err.message.indexOf('fetch') !== -1) {
-      statusEl.innerHTML = '<span class="ai-spinner"></span><span>Trying direct import\u2026</span>';
-      importFromVideoFallback(url, urlInput, statusEl, btn);
-    } else {
+  // Try Jina AI reader first — fetches any URL server-side, returns clean markdown
+  fetch('https://r.jina.ai/' + url, { headers: { 'Accept': 'text/plain', 'X-Return-Format': 'markdown' } })
+    .then(function(res) { if (!res.ok) throw new Error('jina_fail'); return res.text(); })
+    .then(function(text) {
+      if (text.length > 20000) {
+        var idx = text.search(/\b(ingredient|serves|method|instruction|cups?|tbsp?|tsp?)\b/i);
+        text = text.substring(Math.max(0, idx > 500 ? idx - 300 : 0), 20000);
+      }
+      statusEl.innerHTML = '<span class="ai-spinner"></span><span>Structuring recipe…</span>';
+      return callClaudeWithText(text, url);
+    })
+    .catch(function() {
+      // Jina failed — try corsproxy
+      return fetch('https://corsproxy.io/?' + encodeURIComponent(url))
+        .then(function(res) { return res.text(); })
+        .then(function(html) {
+          var text = html
+            .replace(/<script[\s\S]*?<\/script>/gi, '')
+            .replace(/<style[\s\S]*?<\/style>/gi, '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s{3,}/g, '\n').trim().substring(0, 20000);
+          statusEl.innerHTML = '<span class="ai-spinner"></span><span>Structuring recipe…</span>';
+          return callClaudeWithText(text, url);
+        })
+        .catch(function() {
+          statusEl.innerHTML = '<span class="ai-spinner"></span><span>Searching for recipe…</span>';
+          return callClaudeWithSearch(url);
+        });
+    })
+    .then(parseImportResponse)
+    .then(function(p) { populateRecipeFromParsed(p, statusEl, btn, urlInput, 'Build'); })
+    .catch(function(err) {
       statusEl.className = 'ai-status error';
       statusEl.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i><span><strong>Could not import:</strong> ' + escapeHtml(err.message) + '</span>';
       btn.disabled = false;
       btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Build';
-    }
+    });
+}
+
+function callClaudeWithText(text, url) {
+  return anthropicFetch({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 4000,
+    system: IMPORT_SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: 'Extract and structure the recipe from this content (' + url + '):\n\n' + text }]
+  }).then(function(res) {
+    if (!res.ok) return res.json().then(function(e) { throw new Error('API ' + res.status + ': ' + (e.error && e.error.message ? e.error.message : JSON.stringify(e))); });
+    return res.json();
   });
 }
 
-// Fallback: pass URL directly to Claude with web_search (one round only)
-function importFromVideoFallback(url, urlInput, statusEl, btn) {
-  var messages = [{ role: 'user', content: 'Fetch and extract the recipe from this URL: ' + url }];
-  var done = false;
-
+function callClaudeWithSearch(url) {
+  var messages = [{ role: 'user', content: 'Fetch this URL and extract the complete recipe: ' + url }];
+  var rounds = 0;
   function call() {
     return anthropicFetch({
       model: 'claude-sonnet-4-20250514',
@@ -3274,34 +3223,36 @@ function importFromVideoFallback(url, urlInput, statusEl, btn) {
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       system: IMPORT_SYSTEM_PROMPT,
       messages: messages
-    })
-    .then(function(res) {
+    }).then(function(res) {
       if (!res.ok) return res.json().then(function(e) { throw new Error('API ' + res.status + ': ' + (e.error && e.error.message ? e.error.message : JSON.stringify(e))); });
       return res.json();
-    })
-    .then(function(data) {
-      if (data.stop_reason === 'tool_use' && !done) {
-        done = true;
+    }).then(function(data) {
+      if (data.stop_reason === 'tool_use' && rounds < 2) {
+        rounds++;
         messages.push({ role: 'assistant', content: data.content });
-        var results = (data.content || [])
-          .filter(function(b) { return b.type === 'tool_use'; })
-          .map(function(b) { return { type: 'tool_result', tool_use_id: b.id, content: 'fetched' }; });
-        messages.push({ role: 'user', content: results });
+        var toolResults = (data.content || []).filter(function(b) { return b.type === 'tool_use'; })
+          .map(function(b) { return { type: 'tool_result', tool_use_id: b.id, content: 'search complete' }; });
+        messages.push({ role: 'user', content: toolResults });
         return call();
       }
-      return parseImportResponse(data);
+      return data;
     });
   }
-
-  call()
-  .then(function(p) { populateRecipeFromParsed(p, statusEl, btn, urlInput, 'Build'); })
-  .catch(function(err) {
-    statusEl.className = 'ai-status error';
-    statusEl.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i><span><strong>Could not import:</strong> ' + escapeHtml(err.message) + '. Try pasting the recipe text or use the image import.</span>';
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Build';
-  });
+  return call();
 }
+
+function importFromVideoFallback(url, urlInput, statusEl, btn) {
+  callClaudeWithSearch(url)
+    .then(parseImportResponse)
+    .then(function(p) { populateRecipeFromParsed(p, statusEl, btn, urlInput, 'Build'); })
+    .catch(function(err) {
+      statusEl.className = 'ai-status error';
+      statusEl.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i><span><strong>Could not import:</strong> ' + escapeHtml(err.message) + '</span>';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Build';
+    });
+}
+
 
 // ── IMPORT FROM IMAGE ─────────────────────────────────────────────────────────
 function importFromImage() {
