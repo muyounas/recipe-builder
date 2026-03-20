@@ -3676,7 +3676,11 @@ function submitAuthForm() {
     sb.auth.signUp({ email: email, password: password, options: { data: { full_name: name || email.split('@')[0] } } }).then(function(r) {
       btn.disabled = false; btn.textContent = 'Create Account';
       if (r.error) { showLoginMsg(r.error.message, 'error'); return; }
-      if (r.data.session) { onUserReady(r.data.session.user); }
+      if (r.data.session) {
+        // New account — seed the example Fried Chicken recipe
+        seedExampleRecipe(r.data.session.user);
+        onUserReady(r.data.session.user);
+      }
       else { showLoginMsg('Check your email to confirm, then sign in.', 'success'); toggleAuthMode(); }
     });
   } else {
@@ -3687,6 +3691,69 @@ function submitAuthForm() {
     });
   }
 }
+function seedExampleRecipe(user) {
+  var example = {
+    id: Date.now(),
+    title: 'Fried Chicken',
+    image: 'https://leitesculinaria.com/wp-content/uploads/2024/04/batter-fried-chicken-1200.jpg',
+    yield: 3,
+    servingSize: 6,
+    tasks: [
+      { id: 1, name: 'Marinate', items: [
+        { id: 1, type: 'instruction', text: 'In a bowl mix the following:', imageUrl: '' },
+        { id: 2, type: 'ingredient', ingredient: 'Dark Meat (Legs/Thighs)', quantity: 4, unitKey: 'KG' },
+        { id: 3, type: 'ingredient', ingredient: 'Louisiana Hot Sauce', quantity: 0.5, unitKey: 'Cup' },
+        { id: 8, type: 'ingredient', ingredient: 'Water', quantity: 0.5, unitKey: 'Cup' },
+        { id: 5, type: 'ingredient', ingredient: 'Thai Chili (Blended)', quantity: 8, unitKey: 'Units' },
+        { id: 4, type: 'ingredient', ingredient: 'Salt', quantity: 0.5, unitKey: 'Tbs' },
+        { id: 6, type: 'ingredient', ingredient: 'Paprika', quantity: 1, unitKey: 'Tbs' },
+        { id: 7, type: 'ingredient', ingredient: 'Chilli Powder', quantity: 1, unitKey: 'Tbs' },
+        { id: 14, type: 'instruction', text: 'Leave in fridge for minimum 3 hrs.', imageUrl: '' }
+      ]},
+      { id: 3, name: 'Seasoning Flour', items: [
+        { id: 16, type: 'instruction', text: 'In a large bowl, mix the following:', imageUrl: '' },
+        { id: 17, type: 'ingredient', ingredient: 'Flour', quantity: 3, unitKey: 'Cup' },
+        { id: 18, type: 'ingredient', ingredient: 'Salt', quantity: 1, unitKey: 'Tbs' },
+        { id: 19, type: 'ingredient', ingredient: 'Onion Powder', quantity: 1, unitKey: 'Tbs' },
+        { id: 20, type: 'ingredient', ingredient: 'Paprika', quantity: 1, unitKey: 'Tbs' },
+        { id: 21, type: 'ingredient', ingredient: 'White Pepper', quantity: 1, unitKey: 'Tbs' },
+        { id: 22, type: 'ingredient', ingredient: 'Black Pepper', quantity: 0.5, unitKey: 'Tbs' },
+        { id: 23, type: 'ingredient', ingredient: 'Ground Mustard', quantity: 0.5, unitKey: 'Tbs' },
+        { id: 24, type: 'ingredient', ingredient: 'Garlic Powder', quantity: 1, unitKey: 'Tsp' },
+        { id: 25, type: 'ingredient', ingredient: 'Ground Thyme', quantity: 1, unitKey: 'Tsp' },
+        { id: 26, type: 'ingredient', ingredient: 'Celery Salt', quantity: 0.5, unitKey: 'Tsp' },
+        { id: 27, type: 'ingredient', ingredient: 'Garlic Salt', quantity: 0.5, unitKey: 'Tsp' },
+        { id: 28, type: 'instruction', text: 'Leave to side. Prepare another large bowl with just flour:', imageUrl: '' },
+        { id: 29, type: 'ingredient', ingredient: 'Flour', quantity: 1, unitKey: 'Cup' }
+      ]},
+      { id: 2, name: 'Wet Batter', items: [
+        { id: 9, type: 'instruction', text: 'In a large bowl mix the following:', imageUrl: '' },
+        { id: 10, type: 'ingredient', ingredient: 'Club Soda', quantity: 1, unitKey: 'Units' },
+        { id: 11, type: 'ingredient', ingredient: 'Eggs', quantity: 3, unitKey: 'Units' },
+        { id: 12, type: 'ingredient', ingredient: 'Salt', quantity: 1, unitKey: 'Tbs' },
+        { id: 13, type: 'ingredient', ingredient: 'All Purpose Flour', quantity: 1, unitKey: 'Cup' },
+        { id: 15, type: 'instruction', text: 'Leave to side.', imageUrl: '' }
+      ]},
+      { id: 4, name: 'Fry', items: [
+        { id: 30, type: 'instruction', text: 'Fry at 360 degrees F in the following order:', imageUrl: '' },
+        { id: 32, type: 'taskref', label: 'Marinate', qty: 100, unitKey: 'PCT', fromTaskId: 1, fromTaskName: 'Marinate' },
+        { id: 36, type: 'taskref', label: 'Plain Flour', qty: 100, unitKey: 'PCT', fromTaskId: 3, fromTaskName: 'Seasoning Flour' },
+        { id: 33, type: 'taskref', label: 'Wet Batter', qty: 100, unitKey: 'PCT', fromTaskId: 2, fromTaskName: 'Wet Batter' },
+        { id: 34, type: 'taskref', label: 'Seasoning Flour', qty: 100, unitKey: 'PCT', fromTaskId: 3, fromTaskName: 'Seasoning Flour' },
+        { id: 35, type: 'ingredient', ingredient: 'Vegetable Oil', quantity: 5, unitKey: 'Cup' }
+      ]}
+    ]
+  };
+  var now = new Date().toISOString();
+  sb.from('recipes').insert({
+    user_id: user.id,
+    title: example.title,
+    data: example,
+    created_at: now,
+    updated_at: now
+  }).then(function() {});
+}
+
 function logOut() {
   clearTimeout(autoSaveTimer);
   sb.auth.signOut().then(function() {
