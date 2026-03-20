@@ -2045,7 +2045,7 @@ function updateSavedRecipesUI() {
       '<i class="fa-solid fa-grip-vertical" style="color:rgba(240,201,110,0.22);font-size:0.72em;cursor:grab;flex-shrink:0;margin-right:2px;" title="Drag to folder"></i>' +
       thumbHtml +
       '<span class="s-title">' + escapeHtml(recipe.title) + '</span>' +
-      '<span class="s-meta">' + taskCount + 't</span>' +
+      '<i class="fa-solid fa-pencil s-del" title="Rename" style="color:rgba(240,201,110,0.55);" onclick="event.stopPropagation();renameSavedRecipe(' + recipe.id + ')"></i>' +
       '<i class="fa-solid fa-folder-arrow-down s-del" title="Add to folder" style="color:#6aaa96;opacity:0.55;" onclick="event.stopPropagation();showAddToFolderMenu(' + recipe.id + ')"></i>' +
       '<i class="fa-solid fa-trash s-del" title="Delete" onclick="event.stopPropagation();deleteSavedRecipe(' + recipe.id + ')"></i>';
     div.addEventListener('dragstart', function(e) {
@@ -3775,6 +3775,33 @@ function persistRecipeToCloud(recipe) {
         }
       });
   }
+}
+
+function renameSavedRecipe(recipeId) {
+  var recipe = savedRecipes.find(function(r) { return r.id === recipeId; });
+  if (!recipe) return;
+  showDialog({
+    title: 'Rename Recipe',
+    input: true,
+    inputValue: recipe.title,
+    inputPlaceholder: 'Recipe name',
+    buttons: [
+      { label: 'Cancel', cls: 'btn btn-muted btn-sm', value: false },
+      { label: 'Rename', cls: 'btn btn-primary btn-sm', value: true }
+    ],
+    callback: function(newName) {
+      if (!newName || !newName.trim() || newName.trim() === recipe.title) return;
+      recipe.title = newName.trim();
+      if (currentRecipe.id === recipeId) {
+        currentRecipe.title = recipe.title;
+        document.getElementById('recipe-title').value = recipe.title;
+        generateAndDisplay();
+      }
+      persistRecipeToCloud(recipe);
+      updateSavedRecipesUI();
+      toast('Recipe renamed.');
+    }
+  });
 }
 
 function deleteSavedRecipe(recipeId) {
