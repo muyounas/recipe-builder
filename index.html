@@ -4463,13 +4463,12 @@ function renderFolders() {
 function onUserReady(user) {
   hideLoginScreen(user);
   loadAllRecipes().then(function() {
+    loadFolders();
     if (isMobile()) {
-      // Mobile: show full sidebar with recipe list, hide main until user picks a recipe
       resetEditorState('card');
       document.getElementById('main').classList.add('mobile-empty');
       if (!recipesListVisible) toggleRecipesList();
     } else {
-      // Desktop: load first recipe or reset as before
       if (savedRecipes.length > 0) loadRecipe(savedRecipes[0].id);
       else resetEditorState();
     }
@@ -4479,6 +4478,7 @@ function onUserReady(user) {
 function bootApp(user) {
   hideLoginScreen(user);
   loadAllRecipes().then(function() {
+    loadFolders();
     if (isMobile()) {
       resetEditorState('card');
       document.getElementById('main').classList.add('mobile-empty');
@@ -4499,7 +4499,6 @@ document.addEventListener('DOMContentLoaded', function() {
   initTaskSortable();
   initSidebarResize();
   showInputPanel('instruction');
-  loadFolders();
 
   // Check for existing session on page load (handles refresh / returning user)
   sb.auth.getSession().then(function(resp) {
