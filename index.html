@@ -982,9 +982,7 @@ li.recipe-ingredient .ing-qty  { color: var(--ink); font-size: 0.92em; font-weig
 #sidebar-collapse-btn:hover { color: #f0c96e; }
 
 /* Collapsed sidebar state */
-#sidebar.collapsed {
-  transform: translateX(-100%);
-}
+/* sidebar collapse disabled on desktop — no way to re-open without refresh */
 #main.sidebar-hidden {
   margin-left: 0;
 }
@@ -1027,7 +1025,7 @@ li.recipe-ingredient .ing-qty  { color: var(--ink); font-size: 0.92em; font-weig
     z-index: 300;
   }
   #sidebar-toggle-btn { display: flex; }
-  #sidebar-collapse-btn { display: none; }
+  #sidebar-collapse-btn { display: none !important; } /* disabled — no way to re-open on desktop */
 }
 @media (min-width: 901px) {
   #sidebar { transition: transform 0.25s ease; }
@@ -1271,9 +1269,6 @@ li.recipe-taskref .ref-qty {
       <h1>Recipe Builder</h1>
       <span>by Uzi</span>
     </div>
-    <button id="sidebar-collapse-btn" onclick="toggleSidebar()" title="Hide sidebar">
-      <i class="fa-solid fa-chevron-left"></i>
-    </button>
   </div>
   <!-- User info row (shown after login) -->
   <div class="sidebar-user" id="sidebar-user-row" style="display:none;">
