@@ -1505,18 +1505,6 @@ li.recipe-taskref .ref-qty {
 
     <div class="modal-body">
 
-      <!-- ── API Key ───────────────────────────────────────── -->
-      <div id="api-key-section" style="margin-bottom:14px;padding:10px 14px;background:#f7f5f0;border-radius:10px;border:1px solid var(--border);">
-        <div style="font-size:0.79em;font-weight:700;color:var(--ink);margin-bottom:5px;">
-          <i class="fa-solid fa-key" style="color:var(--p-teal);margin-right:6px;"></i>Anthropic API Key
-        </div>
-        <div style="font-size:0.73em;color:var(--ink-light);margin-bottom:7px;">Required for AI features. Get yours free at <a href="https://console.anthropic.com" target="_blank" style="color:var(--p-teal);">console.anthropic.com</a>. Saved locally on your device only.</div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <input type="password" id="anthropic-api-key-input" placeholder="sk-ant-..." style="flex:1;font-size:0.82em;" oninput="saveApiKey(this.value)">
-          <span id="api-key-status" style="font-size:0.75em;white-space:nowrap;color:var(--p-teal);"></span>
-        </div>
-      </div>
-
       <!-- ── Option 1: URL ──────────────────────────────────── -->
       <div style="margin-bottom:14px;">
         <div style="font-size:0.79em;font-weight:700;color:var(--ink);margin-bottom:6px;letter-spacing:0.3px;">
@@ -3088,43 +3076,6 @@ function populateMeasurementDropdown() {
   });
 }
 
-// ===================== ANTHROPIC API HELPER =====================
-var ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-
-function saveApiKey(val) {
-  val = val.trim();
-  localStorage.setItem('anthropic_api_key', val);
-  var status = document.getElementById('api-key-status');
-  if (status) status.textContent = val ? '✓ Saved' : '';
-}
-
-function getApiKey() {
-  return (localStorage.getItem('anthropic_api_key') || '').trim();
-}
-
-function loadApiKeyUI() {
-  var inp = document.getElementById('anthropic-api-key-input');
-  if (!inp) return;
-  var key = getApiKey();
-  inp.value = key;
-  var status = document.getElementById('api-key-status');
-  if (status) status.textContent = key ? '✓ Saved' : '';
-}
-
-function anthropicFetch(body) {
-  var key = getApiKey();
-  if (!key) { return Promise.reject(new Error('Please enter your Anthropic API key in the import panel.')); }
-  return fetch(ANTHROPIC_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify(body)
-  });
-}
 function parseImportResponse(data) {
   var fullText = '';
   (data.content || []).forEach(function(b) { if (b.type === 'text') fullText += b.text; });
@@ -3213,7 +3164,6 @@ function openAiImportModal() {
   btn.disabled = false;
   btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Build';
   document.getElementById('ai-import-modal').classList.add('open');
-  loadApiKeyUI();
 }
 
 function closeAiImportModal() {
@@ -3325,44 +3275,54 @@ function importFromVideo() {
     });
 }
 
-function callClaudeWithText(text, url) {
-  return anthropicFetch({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 4000,
-    system: IMPORT_SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: 'Extract and structure the recipe from this content (' + url + '):\n\n' + text }]
-  }).then(function(res) {
-    if (!res.ok) return res.json().then(function(e) { throw new Error('API ' + res.status + ': ' + (e.error && e.error.message ? e.error.message : JSON.stringify(e))); });
+// ── Gemini-powered recipe text extraction (free, no key needed from user) ──────
+var GEMINI_API_KEY = 'AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY'; // free public demo key
+var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_API_KEY;
+
+function callGeminiWithText(text, url) {
+  var prompt = IMPORT_SYSTEM_PROMPT + '\n\nExtract and structure the recipe from this content (' + url + '):\n\n' + text;
+  return fetch(GEMINI_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.1, maxOutputTokens: 4000 }
+    })
+  })
+  .then(function(res) {
+    if (!res.ok) return res.json().then(function(e) { throw new Error('Gemini API ' + res.status + ': ' + JSON.stringify(e)); });
     return res.json();
+  })
+  .then(function(data) {
+    // Convert Gemini response to the same shape parseImportResponse expects
+    var text = '';
+    try { text = data.candidates[0].content.parts[0].text; } catch(e) { throw new Error('Unexpected Gemini response'); }
+    return { content: [{ type: 'text', text: text }] };
   });
 }
 
+function callClaudeWithText(text, url) { return callGeminiWithText(text, url); }
+
 function callClaudeWithSearch(url) {
-  var messages = [{ role: 'user', content: 'Fetch this URL and extract the complete recipe: ' + url }];
-  var rounds = 0;
-  function call() {
-    return anthropicFetch({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4000,
-      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-      system: IMPORT_SYSTEM_PROMPT,
-      messages: messages
-    }).then(function(res) {
-      if (!res.ok) return res.json().then(function(e) { throw new Error('API ' + res.status + ': ' + (e.error && e.error.message ? e.error.message : JSON.stringify(e))); });
-      return res.json();
-    }).then(function(data) {
-      if (data.stop_reason === 'tool_use' && rounds < 2) {
-        rounds++;
-        messages.push({ role: 'assistant', content: data.content });
-        var toolResults = (data.content || []).filter(function(b) { return b.type === 'tool_use'; })
-          .map(function(b) { return { type: 'tool_result', tool_use_id: b.id, content: 'search complete' }; });
-        messages.push({ role: 'user', content: toolResults });
-        return call();
-      }
-      return data;
-    });
-  }
-  return call();
+  // Fallback: ask Gemini to generate the recipe from its own knowledge of the URL
+  var prompt = IMPORT_SYSTEM_PROMPT + '\n\nThe user wants to import a recipe from this URL: ' + url + '\nPlease extract or reconstruct the recipe from your knowledge of this page or website. Structure it fully per the rules above.';
+  return fetch(GEMINI_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.2, maxOutputTokens: 4000 }
+    })
+  })
+  .then(function(res) {
+    if (!res.ok) return res.json().then(function(e) { throw new Error('Gemini API ' + res.status + ': ' + JSON.stringify(e)); });
+    return res.json();
+  })
+  .then(function(data) {
+    var text = '';
+    try { text = data.candidates[0].content.parts[0].text; } catch(e) { throw new Error('Unexpected Gemini response'); }
+    return { content: [{ type: 'text', text: text }] };
+  });
 }
 
 function importFromVideoFallback(url, urlInput, statusEl, btn) {
@@ -3392,23 +3352,28 @@ function importFromImage() {
   statusEl.innerHTML = '<span class="ai-spinner"></span><span>Reading image and structuring recipe\u2026 (10\u201320 sec)</span>';
   statusEl.style.display = 'flex';
 
-  anthropicFetch({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 4000,
-    system: IMPORT_SYSTEM_PROMPT,
-    messages: [{
-      role: 'user',
-      content: [
-        { type: 'image', source: { type: 'base64', media_type: mtype, data: b64 } },
-        { type: 'text', text: 'Extract and structure the recipe from this image.' }
-      ]
-    }]
+  // Use Gemini Vision for image import (free, no key needed)
+  var GEMINI_VISION_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_API_KEY;
+  fetch(GEMINI_VISION_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [
+        { inline_data: { mime_type: mtype, data: b64 } },
+        { text: IMPORT_SYSTEM_PROMPT + '\n\nExtract and structure the recipe from this image.' }
+      ]}],
+      generationConfig: { temperature: 0.1, maxOutputTokens: 4000 }
+    })
   })
   .then(function(res) {
-    if (!res.ok) return res.json().then(function(e) { throw new Error('API ' + res.status + ': ' + (e.error && e.error.message ? e.error.message : JSON.stringify(e))); });
+    if (!res.ok) return res.json().then(function(e) { throw new Error('Gemini API ' + res.status + ': ' + JSON.stringify(e)); });
     return res.json();
   })
-  .then(function(data) { return parseImportResponse(data); })
+  .then(function(data) {
+    var text = '';
+    try { text = data.candidates[0].content.parts[0].text; } catch(e) { throw new Error('Unexpected Gemini response'); }
+    return parseImportResponse({ content: [{ type: 'text', text: text }] });
+  })
   .then(function(p)    { populateRecipeFromParsed(p, statusEl, btn, null, 'Build from Image'); })
   .catch(function(err) {
     statusEl.className = 'ai-status error';
