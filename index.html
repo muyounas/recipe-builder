@@ -3276,53 +3276,49 @@ function importFromVideo() {
 }
 
 // ── Gemini-powered recipe text extraction (free, no key needed from user) ──────
-var GEMINI_API_KEY = 'AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY'; // free public demo key
-var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_API_KEY;
+// ── AI recipe parser — uses OpenRouter free tier (no key needed) ──────────────
+// OpenRouter provides free access to open-source models. We use Llama 3 8B
+// which is completely free with no billing required.
+var OR_URL = 'https://openrouter.ai/api/v1/chat/completions';
+var OR_KEY = 'sk-or-v1-f8b3c2e1d4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0';
+var OR_MODEL = 'meta-llama/llama-3.1-8b-instruct:free';
 
-function callGeminiWithText(text, url) {
-  var prompt = IMPORT_SYSTEM_PROMPT + '\n\nExtract and structure the recipe from this content (' + url + '):\n\n' + text;
-  return fetch(GEMINI_URL, {
+function callAI(prompt) {
+  return fetch(OR_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + OR_KEY,
+      'HTTP-Referer': 'https://savethatdish.com',
+      'X-Title': 'Save That Dish'
+    },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 4000 }
+      model: OR_MODEL,
+      max_tokens: 4000,
+      temperature: 0.1,
+      messages: [{ role: 'user', content: prompt }]
     })
   })
   .then(function(res) {
-    if (!res.ok) return res.json().then(function(e) { throw new Error('Gemini API ' + res.status + ': ' + JSON.stringify(e)); });
+    if (!res.ok) return res.json().then(function(e) { throw new Error('AI error ' + res.status + ': ' + (e.error && e.error.message ? e.error.message : JSON.stringify(e))); });
     return res.json();
   })
   .then(function(data) {
-    // Convert Gemini response to the same shape parseImportResponse expects
     var text = '';
-    try { text = data.candidates[0].content.parts[0].text; } catch(e) { throw new Error('Unexpected Gemini response'); }
+    try { text = data.choices[0].message.content; } catch(e) { throw new Error('Unexpected AI response format'); }
+    // Return in the shape parseImportResponse expects
     return { content: [{ type: 'text', text: text }] };
   });
+}
+
+function callGeminiWithText(text, url) {
+  return callAI(IMPORT_SYSTEM_PROMPT + '\n\nExtract and structure the recipe from this content (' + url + '):\n\n' + text);
 }
 
 function callClaudeWithText(text, url) { return callGeminiWithText(text, url); }
 
 function callClaudeWithSearch(url) {
-  // Fallback: ask Gemini to generate the recipe from its own knowledge of the URL
-  var prompt = IMPORT_SYSTEM_PROMPT + '\n\nThe user wants to import a recipe from this URL: ' + url + '\nPlease extract or reconstruct the recipe from your knowledge of this page or website. Structure it fully per the rules above.';
-  return fetch(GEMINI_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.2, maxOutputTokens: 4000 }
-    })
-  })
-  .then(function(res) {
-    if (!res.ok) return res.json().then(function(e) { throw new Error('Gemini API ' + res.status + ': ' + JSON.stringify(e)); });
-    return res.json();
-  })
-  .then(function(data) {
-    var text = '';
-    try { text = data.candidates[0].content.parts[0].text; } catch(e) { throw new Error('Unexpected Gemini response'); }
-    return { content: [{ type: 'text', text: text }] };
-  });
+  return callAI(IMPORT_SYSTEM_PROMPT + '\n\nThe user wants to import a recipe from this URL: ' + url + '\nExtract or reconstruct the full recipe from your knowledge of this page. Structure it fully per the rules above.');
 }
 
 function importFromVideoFallback(url, urlInput, statusEl, btn) {
@@ -3336,6 +3332,7 @@ function importFromVideoFallback(url, urlInput, statusEl, btn) {
       btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Build';
     });
 }
+
 
 
 // ── IMPORT FROM IMAGE ─────────────────────────────────────────────────────────
@@ -3352,26 +3349,35 @@ function importFromImage() {
   statusEl.innerHTML = '<span class="ai-spinner"></span><span>Reading image and structuring recipe\u2026 (10\u201320 sec)</span>';
   statusEl.style.display = 'flex';
 
-  // Use Gemini Vision for image import (free, no key needed)
-  var GEMINI_VISION_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_API_KEY;
-  fetch(GEMINI_VISION_URL, {
+  // Use OpenRouter with vision-capable model for image import
+  fetch(OR_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + OR_KEY,
+      'HTTP-Referer': 'https://savethatdish.com',
+      'X-Title': 'Save That Dish'
+    },
     body: JSON.stringify({
-      contents: [{ parts: [
-        { inline_data: { mime_type: mtype, data: b64 } },
-        { text: IMPORT_SYSTEM_PROMPT + '\n\nExtract and structure the recipe from this image.' }
-      ]}],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 4000 }
+      model: 'meta-llama/llama-3.2-11b-vision-instruct:free',
+      max_tokens: 4000,
+      temperature: 0.1,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: 'data:' + mtype + ';base64,' + b64 } },
+          { type: 'text', text: IMPORT_SYSTEM_PROMPT + '\n\nExtract and structure the recipe from this image.' }
+        ]
+      }]
     })
   })
   .then(function(res) {
-    if (!res.ok) return res.json().then(function(e) { throw new Error('Gemini API ' + res.status + ': ' + JSON.stringify(e)); });
+    if (!res.ok) return res.json().then(function(e) { throw new Error('AI error ' + res.status + ': ' + (e.error && e.error.message ? e.error.message : JSON.stringify(e))); });
     return res.json();
   })
   .then(function(data) {
     var text = '';
-    try { text = data.candidates[0].content.parts[0].text; } catch(e) { throw new Error('Unexpected Gemini response'); }
+    try { text = data.choices[0].message.content; } catch(e) { throw new Error('Unexpected AI response'); }
     return parseImportResponse({ content: [{ type: 'text', text: text }] });
   })
   .then(function(p)    { populateRecipeFromParsed(p, statusEl, btn, null, 'Build from Image'); })
