@@ -1503,6 +1503,20 @@ li.recipe-taskref .ref-qty {
     </div>
     <div class="modal-body">
 
+    <div class="modal-body">
+
+      <!-- ── API Key ───────────────────────────────────────── -->
+      <div id="api-key-section" style="margin-bottom:14px;padding:10px 14px;background:#f7f5f0;border-radius:10px;border:1px solid var(--border);">
+        <div style="font-size:0.79em;font-weight:700;color:var(--ink);margin-bottom:5px;">
+          <i class="fa-solid fa-key" style="color:var(--p-teal);margin-right:6px;"></i>Anthropic API Key
+        </div>
+        <div style="font-size:0.73em;color:var(--ink-light);margin-bottom:7px;">Required for AI features. Get yours free at <a href="https://console.anthropic.com" target="_blank" style="color:var(--p-teal);">console.anthropic.com</a>. Saved locally on your device only.</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="password" id="anthropic-api-key-input" placeholder="sk-ant-..." style="flex:1;font-size:0.82em;" oninput="saveApiKey(this.value)">
+          <span id="api-key-status" style="font-size:0.75em;white-space:nowrap;color:var(--p-teal);"></span>
+        </div>
+      </div>
+
       <!-- ── Option 1: URL ──────────────────────────────────── -->
       <div style="margin-bottom:14px;">
         <div style="font-size:0.79em;font-weight:700;color:var(--ink);margin-bottom:6px;letter-spacing:0.3px;">
@@ -3077,16 +3091,37 @@ function populateMeasurementDropdown() {
 // ===================== ANTHROPIC API HELPER =====================
 var ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 
+function saveApiKey(val) {
+  val = val.trim();
+  localStorage.setItem('anthropic_api_key', val);
+  var status = document.getElementById('api-key-status');
+  if (status) status.textContent = val ? '✓ Saved' : '';
+}
+
+function getApiKey() {
+  return (localStorage.getItem('anthropic_api_key') || '').trim();
+}
+
+function loadApiKeyUI() {
+  var inp = document.getElementById('anthropic-api-key-input');
+  if (!inp) return;
+  var key = getApiKey();
+  inp.value = key;
+  var status = document.getElementById('api-key-status');
+  if (status) status.textContent = key ? '✓ Saved' : '';
+}
+
 function anthropicFetch(body) {
-  var isLocal = window.location.protocol === 'file:' ||
-                window.location.hostname === 'localhost' ||
-                window.location.hostname === '127.0.0.1';
-  var url = isLocal
-    ? 'https://corsproxy.io/?' + encodeURIComponent(ANTHROPIC_API_URL)
-    : ANTHROPIC_API_URL;
-  return fetch(url, {
+  var key = getApiKey();
+  if (!key) { return Promise.reject(new Error('Please enter your Anthropic API key in the import panel.')); }
+  return fetch(ANTHROPIC_API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
     body: JSON.stringify(body)
   });
 }
@@ -3178,6 +3213,7 @@ function openAiImportModal() {
   btn.disabled = false;
   btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Build';
   document.getElementById('ai-import-modal').classList.add('open');
+  loadApiKeyUI();
 }
 
 function closeAiImportModal() {
