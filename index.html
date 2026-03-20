@@ -1814,9 +1814,9 @@ function resetEditorState(targetTab) {
   syncRecipeImageUI('');
   setAutoSaveStatus('saved');
   updateTaskListUI(); renderActiveTaskItems(); generateAndDisplay(); updateSavedRecipesUI();
-  // On mobile: restore full sidebar when New Recipe is explicitly pressed
+  // On mobile: collapse sidebar and show main, same as when a recipe is selected
   if (isMobile() && !targetTab) {
-    document.getElementById('sidebar').classList.remove('mobile-recipe-open');
+    document.getElementById('sidebar').classList.add('mobile-recipe-open');
     document.getElementById('main').classList.remove('mobile-empty');
   }
   switchTab(targetTab || 'edit');
