@@ -3675,6 +3675,7 @@ function loadAllRecipes() {
         } else {
           savedRecipes = [];
           (result.data || []).forEach(function(row) {
+            if (row.title === '__folders__') return; // skip folders sentinel
             try {
               var r = typeof row.data === 'string'
                 ? JSON.parse(row.data)
@@ -4172,14 +4173,58 @@ function parseSingleIngredient(text, unitMap, fractionMap) {
 var folders = [];
 
 function saveFolders() {
+  // Always save to localStorage as fast local cache
   try { localStorage.setItem('uzi_folders_v1', JSON.stringify(folders)); } catch(e) {}
+  // Sync to Supabase so all devices stay in sync
+  if (!currentUser) return;
+  sb.from('recipes')
+    .select('id')
+    .eq('user_id', currentUser.id)
+    .eq('title', '__folders__')
+    .then(function(result) {
+      var payload = {
+        user_id: currentUser.id,
+        title: '__folders__',
+        data: { folders: folders },
+        updated_at: new Date().toISOString()
+      };
+      if (result.data && result.data.length > 0) {
+        sb.from('recipes').update(payload).eq('id', result.data[0].id).then(function() {});
+      } else {
+        payload.created_at = new Date().toISOString();
+        sb.from('recipes').insert(payload).then(function() {});
+      }
+    });
 }
+
 function loadFolders() {
+  // Load from localStorage first (instant)
   try {
     var s = localStorage.getItem('uzi_folders_v1');
     folders = s ? JSON.parse(s) : [];
   } catch(e) { folders = []; }
   renderFolders();
+
+  // Then fetch from Supabase and overwrite (authoritative source)
+  if (!currentUser) return;
+  sb.from('recipes')
+    .select('data')
+    .eq('user_id', currentUser.id)
+    .eq('title', '__folders__')
+    .then(function(result) {
+      if (result.data && result.data.length > 0) {
+        try {
+          var d = typeof result.data[0].data === 'string'
+            ? JSON.parse(result.data[0].data)
+            : result.data[0].data;
+          if (d && Array.isArray(d.folders)) {
+            folders = d.folders;
+            try { localStorage.setItem('uzi_folders_v1', JSON.stringify(folders)); } catch(e) {}
+            renderFolders();
+          }
+        } catch(e) {}
+      }
+    });
 }
 
 function createFolder() {
