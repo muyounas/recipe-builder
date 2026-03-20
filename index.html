@@ -1096,7 +1096,7 @@ li.recipe-taskref .ref-qty {
 @media (max-width: 900px) {
   body { flex-direction: column; }
 
-  /* Sidebar: fixed at top, scrollable, full screen height available */
+  /* Sidebar: fixed at top, full height, flex column so inner panel can scroll */
   #sidebar {
     position: relative;
     width: 100%;
@@ -1107,7 +1107,7 @@ li.recipe-taskref .ref-qty {
     flex-direction: column;
   }
 
-  /* Saved recipes panel scrolls within the capped sidebar */
+  /* Saved recipes panel — fills remaining space and scrolls */
   #recipes-panel {
     flex: 1;
     min-height: 0;
@@ -1117,8 +1117,18 @@ li.recipe-taskref .ref-qty {
   }
   #recipes-panel .sidebar-panel-inner {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    /* Make sure folders-container is fully visible */
+    display: flex;
+    flex-direction: column;
+  }
+  #recipes-panel .sidebar-panel-inner #folders-container {
+    flex-shrink: 0;
+  }
+  #recipes-panel .sidebar-panel-inner #saved-recipes-container {
+    flex-shrink: 0;
   }
 
   #main { margin-left: 0; padding: 14px; min-height: auto; }
