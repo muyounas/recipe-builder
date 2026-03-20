@@ -404,7 +404,10 @@ body {
   }
 }
 
-/* Bigger, easier-to-hit drag handles on mobile */
+@media (max-width: 900px) {
+  .folder-item .folder-share,
+  .folder-item .folder-del { font-size: 1em; padding: 10px 12px; }
+}
 @media (max-width: 900px) {
   .drag-handle {
     font-size: 1.15em !important;
@@ -844,11 +847,11 @@ li.recipe-ingredient .ing-qty  { color: var(--ink); font-size: 0.92em; font-weig
 .folder-item .folder-icon { color: #f0c96e; font-size: 0.9em; flex-shrink: 0; }
 .folder-item .folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .folder-item .folder-count { color: rgba(240,201,110,0.38); font-size: 0.76em; flex-shrink: 0; }
-.folder-item .folder-actions { display: flex; gap: 4px; flex-shrink: 0; }
-.folder-item .folder-share { color: #6aaa96; opacity: 0.75; cursor: pointer; font-size: 0.85em; padding: 2px 3px; }
-.folder-item .folder-share:hover { opacity: 1; color: #f0c96e; }
-.folder-item .folder-del { color: #f08080; opacity: 0.5; cursor: pointer; font-size: 0.78em; }
-.folder-item .folder-del:hover { opacity: 1; }
+.folder-item .folder-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.folder-item .folder-share { color: #6aaa96; opacity: 0.75; cursor: pointer; font-size: 0.9em; padding: 6px 8px; border-radius: 6px; transition: opacity 0.15s, background 0.15s; }
+.folder-item .folder-share:hover { opacity: 1; color: #f0c96e; background: rgba(240,201,110,0.12); }
+.folder-item .folder-del { color: #f08080; opacity: 0.6; cursor: pointer; font-size: 0.9em; padding: 6px 8px; border-radius: 6px; transition: opacity 0.15s, background 0.15s; }
+.folder-item .folder-del:hover { opacity: 1; background: rgba(240,100,100,0.12); }
 .folder-recipes { padding-left: 18px; display: none; }
 .folder-recipes.open { display: block; }
 .folder-drop-zone {
@@ -1280,11 +1283,11 @@ li.recipe-taskref .ref-qty {
           <i class="fa-solid fa-chevron-down" id="recipes-chevron" style="font-size:0.65em;color:rgba(240,201,110,0.55);transition:transform 0.2s;"></i>
           <div class="sidebar-section-title" style="margin-bottom:0;">Saved Recipes</div>
         </div>
-        <div style="display:flex;gap:4px;">
-          <button onclick="downloadRecipeAsJSON()" title="Download current recipe" style="background:none;border:none;color:rgba(240,201,110,0.50);cursor:pointer;font-size:0.82em;padding:2px 5px;transition:color 0.15s;" onmouseover="this.style.color='#f0c96e'" onmouseout="this.style.color='rgba(240,201,110,0.50)'">
+        <div style="display:flex;gap:2px;">
+          <button onclick="downloadRecipeAsJSON()" title="Download current recipe" style="background:none;border:none;color:rgba(240,201,110,0.60);cursor:pointer;font-size:1em;padding:8px 10px;border-radius:8px;transition:color 0.15s,background 0.15s;" onmouseover="this.style.color='#f0c96e';this.style.background='rgba(240,201,110,0.1)'" onmouseout="this.style.color='rgba(240,201,110,0.60)';this.style.background='none'">
             <i class="fa-solid fa-download"></i>
           </button>
-          <button onclick="createFolder()" title="New folder" style="background:none;border:none;color:rgba(240,201,110,0.50);cursor:pointer;font-size:0.82em;padding:2px 5px;transition:color 0.15s;" onmouseover="this.style.color='#f0c96e'" onmouseout="this.style.color='rgba(240,201,110,0.50)'">
+          <button onclick="createFolder()" title="New folder" style="background:none;border:none;color:rgba(240,201,110,0.60);cursor:pointer;font-size:1em;padding:8px 10px;border-radius:8px;transition:color 0.15s,background 0.15s;" onmouseover="this.style.color='#f0c96e';this.style.background='rgba(240,201,110,0.1)'" onmouseout="this.style.color='rgba(240,201,110,0.60)';this.style.background='none'">
             <i class="fa-solid fa-folder-plus"></i>
           </button>
         </div>
