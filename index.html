@@ -1271,7 +1271,7 @@ li.recipe-taskref .ref-qty {
     <button class="sidebar-btn purple" onclick="openAiImportModal()">
       <i class="fa-solid fa-wand-magic-sparkles"></i> Import Recipe
     </button>
-    <button class="sidebar-btn gold" onclick="openGroceryModal()">
+    <button class="sidebar-btn gold" onclick="openMultiGroceryPDFDirect()">
       <i class="fa-solid fa-basket-shopping"></i> Multi-Recipe Grocery List
     </button>
   </div>
@@ -1511,7 +1511,7 @@ li.recipe-taskref .ref-qty {
     </div>
     <div class="modal-footer">
       <button class="btn btn-muted btn-sm" onclick="closeGroceryModal()">Close</button>
-      <button class="btn btn-gold btn-sm" onclick="generateConsolidatedGrocery()"><i class="fa-solid fa-arrows-rotate"></i> Generate List</button>
+      <button class="btn btn-gold btn-sm" onclick="openMultiGroceryPDF()"><i class="fa-solid fa-file-pdf"></i> View Grocery List</button>
     </div>
   </div>
 </div>
@@ -2526,8 +2526,12 @@ function openGroceryModal() {
   buildGroceryCheckboxes();
   document.getElementById('grocery-recipe-selector').style.display = 'block';
   document.getElementById('grocery-list-output').innerHTML = '';
-
   document.getElementById('grocery-modal').classList.add('open');
+  // Auto-check all recipes and generate immediately
+  setTimeout(function() {
+    document.querySelectorAll('#grocery-checkboxes input[type=checkbox]').forEach(function(cb) { cb.checked = true; });
+    generateConsolidatedGrocery();
+  }, 50);
 }
 
 function closeGroceryModal() {
@@ -2576,7 +2580,7 @@ function buildGroceryCheckboxes() {
         '<span class="gcb-serving">' + servingLabel + '</span>' +
       '</label>';
     var cb = div.querySelector('input[type=checkbox]');
-    cb.addEventListener('change', function() { div.classList.toggle('selected', cb.checked); });
+    cb.addEventListener('change', function() { div.classList.toggle('selected', cb.checked); generateConsolidatedGrocery(); });
     container.appendChild(div);
   });
 }
@@ -2618,6 +2622,69 @@ function generateConsolidatedGrocery() {
 
 // Shared editable list state
 var groceryListItems = [];
+
+function openMultiGroceryPDF() {
+  var active = groceryListItems.filter(function(i) { return !i.checked; });
+  if (!active.length) { toast('No items on the list yet.'); return; }
+  var title = document.getElementById('grocery-list-output').getAttribute('data-title') || 'Shopping List';
+  var rows = active.map(function(item) {
+    return '<tr><td style="padding:8px 6px;border-bottom:1px solid #eee;">' + escapeHtml(item.name) + '</td>'
+         + '<td style="padding:8px 6px;border-bottom:1px solid #eee;text-align:right;">' + escapeHtml(item.display || '—') + '</td></tr>';
+  }).join('');
+  var html = '<!DOCTYPE html><html><head><title>Grocery List</title>'
+    + '<style>body{font-family:Georgia,serif;padding:36px;max-width:600px;margin:0 auto;color:#222;}'
+    + 'h1{font-size:1.4em;margin-bottom:4px;}p.sub{color:#888;font-size:0.85em;margin:0 0 18px;}'
+    + 'table{width:100%;border-collapse:collapse;margin-top:12px;}'
+    + 'th{text-align:left;border-bottom:2px solid #333;padding:6px;font-size:0.82em;text-transform:uppercase;letter-spacing:.05em;}'
+    + 'th:last-child{text-align:right;}'
+    + '@media print{body{padding:18px;}}</style></head>'
+    + '<body><h1>Grocery List</h1><p class="sub">' + escapeHtml(title) + '</p>'
+    + '<table><thead><tr><th>Ingredient</th><th>Amount</th></tr></thead><tbody>' + rows + '</tbody></table>'
+    + '<script>window.onload=function(){window.print();}<\/script></body></html>';
+  var w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+}
+
+function openMultiGroceryPDFDirect() {
+  if (savedRecipes.length === 0) { toast('No saved recipes to build a grocery list from.'); return; }
+  var map = {};
+  savedRecipes.forEach(function(recipe) {
+    var yld = recipe.yield, svc = recipe.servingSize;
+    var sf  = (yld && svc && yld > 0) ? svc / yld : 1;
+    recipe.tasks.forEach(function(task) {
+      task.items.forEach(function(item) {
+        if (item.type === 'ingredient') {
+          var key = item.ingredient.toLowerCase().trim() + '_' + item.unitKey;
+          var sq  = item.quantity * sf;
+          if (map[key]) { map[key].quantity += sq; }
+          else { map[key] = { name: item.ingredient, quantity: sq, unitKey: item.unitKey, unitName: (MEASUREMENT_TYPES[item.unitKey] || { name: item.unitKey }).name }; }
+        }
+      });
+    });
+  });
+  var list = Object.values(map).sort(function(a,b) { return a.name.localeCompare(b.name); });
+  if (!list.length) { toast('No ingredients found in your recipes.'); return; }
+  var rows = list.map(function(item) {
+    var qty = item.quantity % 1 === 0 ? item.quantity : parseFloat(item.quantity.toFixed(2));
+    return '<tr><td style="padding:8px 6px;border-bottom:1px solid #eee;">' + escapeHtml(item.name) + '</td>'
+         + '<td style="padding:8px 6px;border-bottom:1px solid #eee;text-align:right;">' + (qty ? qty + ' ' + escapeHtml(item.unitName) : '—') + '</td></tr>';
+  }).join('');
+  var recipeNames = savedRecipes.map(function(r) { return escapeHtml(r.title); }).join(', ');
+  var html = '<!DOCTYPE html><html><head><title>Grocery List</title>'
+    + '<style>body{font-family:Georgia,serif;padding:36px;max-width:600px;margin:0 auto;color:#222;}'
+    + 'h1{font-size:1.5em;margin-bottom:4px;}p.sub{color:#888;font-size:0.85em;margin:0 0 18px;}'
+    + 'table{width:100%;border-collapse:collapse;margin-top:12px;}'
+    + 'th{text-align:left;border-bottom:2px solid #333;padding:6px;font-size:0.82em;text-transform:uppercase;letter-spacing:.05em;}'
+    + 'th:last-child{text-align:right;}'
+    + '@media print{body{padding:18px;}}</style></head>'
+    + '<body><h1>Grocery List</h1><p class="sub">' + recipeNames + '</p>'
+    + '<table><thead><tr><th>Ingredient</th><th>Amount</th></tr></thead><tbody>' + rows + '</tbody></table>'
+    + '<script>window.onload=function(){window.print();}<\/script></body></html>';
+  var w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+}
 
 function renderEditableGroceryList(list, titleStr) {
   groceryListItems = list.map(function(item, i) {
