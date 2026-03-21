@@ -2527,11 +2527,6 @@ function openGroceryModal() {
   document.getElementById('grocery-recipe-selector').style.display = 'block';
   document.getElementById('grocery-list-output').innerHTML = '';
   document.getElementById('grocery-modal').classList.add('open');
-  // Auto-check all recipes and generate immediately
-  setTimeout(function() {
-    document.querySelectorAll('#grocery-checkboxes input[type=checkbox]').forEach(function(cb) { cb.checked = true; });
-    generateConsolidatedGrocery();
-  }, 50);
 }
 
 function closeGroceryModal() {
