@@ -2985,55 +2985,51 @@ function importFromVideo() {
 
 // ── Gemini-powered recipe text extraction (free, no key needed from user) ──────
 // ── AI Import Engine — Gemini Flash (free, paste key once) ──────────────────
-var GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent';
-
-var GEMINI_API_KEY = 'AIzaSyDnXeykXTmMwee1FmVoDgmkSRj8CrlFrP8';
-function getGeminiKey() {
-  return (localStorage.getItem('gemini_api_key') || GEMINI_API_KEY).trim();
-}
-function saveGeminiKey(val) {
-  localStorage.setItem('gemini_api_key', val.trim());
-  var st = document.getElementById('gemini-key-status');
-  if (st) st.textContent = val.trim() ? '✓ Saved' : '';
-}
+function getGeminiKey() { return ''; }
+function saveGeminiKey() {}
 
 function callAI(textPrompt, imageB64, imageMime) {
-  var key = getGeminiKey();
-  if (!key) return Promise.reject(new Error('AI import is not configured. Please contact support.'));
+  var messages = [];
+  if (imageB64) {
+    messages.push({ role: 'user', content: [
+      { type: 'image', source: { type: 'base64', media_type: imageMime || 'image/jpeg', data: imageB64 } },
+      { type: 'text', text: textPrompt }
+    ]});
+  } else {
+    messages.push({ role: 'user', content: textPrompt });
+  }
 
-  var parts = [];
-  if (imageB64) parts.push({ inline_data: { mime_type: imageMime || 'image/jpeg', data: imageB64 } });
-  parts.push({ text: textPrompt });
-
-  return fetch(GEMINI_ENDPOINT + '?key=' + encodeURIComponent(key), {
+  return fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      contents: [{ parts: parts }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 4096 }
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4096,
+      system: IMPORT_SYSTEM_PROMPT,
+      messages: messages
     })
   })
   .then(function(res) {
     if (!res.ok) return res.json().then(function(e) {
       var msg = e.error && e.error.message ? e.error.message : JSON.stringify(e);
-      throw new Error('Gemini ' + res.status + ': ' + msg);
+      throw new Error('Import failed (' + res.status + '): ' + msg);
     });
     return res.json();
   })
   .then(function(data) {
     var text = '';
-    try { text = data.candidates[0].content.parts[0].text; } catch(e) { throw new Error('Unexpected Gemini response'); }
+    try { text = data.content[0].text; } catch(e) { throw new Error('Unexpected response from AI'); }
     return { content: [{ type: 'text', text: text }] };
   });
 }
 
 function callClaudeWithText(text, url) {
-  return callAI(IMPORT_SYSTEM_PROMPT + '\n\nExtract and structure the recipe from this content (' + url + '):\n\n' + text);
+  return callAI('Extract and structure the recipe from this content (' + url + '):\n\n' + text);
 }
 function callGeminiWithText(text, url) { return callClaudeWithText(text, url); }
 
 function callClaudeWithSearch(url) {
-  return callAI(IMPORT_SYSTEM_PROMPT + '\n\nThe user wants to import a recipe from: ' + url + '\nExtract or reconstruct the full recipe from your knowledge of this page. Structure it fully per the rules above.');
+  return callAI('The user wants to import a recipe from: ' + url + '\nExtract or reconstruct the full recipe from your knowledge of this page. Structure it fully per the rules above.');
 }
 
 function importFromVideoFallback(url, urlInput, statusEl, btn) {
