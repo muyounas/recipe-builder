@@ -669,23 +669,20 @@ li.recipe-ingredient .ing-qty  { color: var(--ink-light); font-size: 0.90em; }
     <div id="output-display">
       <p class="empty-state">Add a task and some items to see your recipe card.</p>
     </div>
-
-    <!-- INLINE GROCERY LIST PANEL -->
-    <div id="single-grocery-panel" style="display:none; border-top:2px solid var(--sage-light); margin-top:0;">
-      <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 20px 10px; background:var(--cream);">
-        <div style="display:flex; align-items:center; gap:8px;">
+    <div id="single-grocery-panel" style="display:none;border-top:2px solid var(--sage-light);">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:var(--cream);">
+        <div style="display:flex;align-items:center;gap:8px;">
           <i class="fa-solid fa-cart-shopping" style="color:var(--sage-mid);"></i>
-          <span style="font-family:'Playfair Display',serif; font-size:1.05em; font-weight:600; color:var(--ink);">Grocery List</span>
-          <span id="single-grocery-recipe-name" style="font-size:0.8em; color:var(--ink-light); margin-left:4px;"></span>
+          <span style="font-family:'Playfair Display',serif;font-size:1em;font-weight:600;color:var(--ink);">Grocery List</span>
+          <span id="single-grocery-recipe-name" style="font-size:0.8em;color:var(--ink-light);margin-left:2px;"></span>
         </div>
-        <div style="display:flex; gap:8px;">
+        <div style="display:flex;gap:8px;">
           <button class="btn btn-muted btn-sm" onclick="printSingleGrocery()"><i class="fa-solid fa-print"></i> Print</button>
           <button class="btn btn-muted btn-sm" onclick="toggleSingleGrocery()"><i class="fa-solid fa-xmark"></i> Close</button>
         </div>
       </div>
       <div id="single-grocery-body" style="padding:16px 24px 20px;"></div>
     </div>
-
   </div>
 
 </main>
@@ -1291,7 +1288,7 @@ function generateShareableText() {
 }
 
 // ===================== SINGLE RECIPE GROCERY =====================
-function buildSingleGroceryList() {
+function buildSingleGroceryMap() {
   var map = {};
   var yld = currentRecipe.yield, svc = currentRecipe.servingSize;
   var sf  = (yld && svc && yld > 0) ? svc / yld : 1;
@@ -1316,12 +1313,10 @@ function toggleSingleGrocery() {
     btn.innerHTML = '<i class="fa-solid fa-cart-shopping"></i> Grocery List';
     return;
   }
-  var list = buildSingleGroceryList();
+  var list = buildSingleGroceryMap();
   if (!list.length) { toast('No ingredients found in this recipe.'); return; }
   var yld = currentRecipe.yield, svc = currentRecipe.servingSize;
-  // Recipe name tag
   document.getElementById('single-grocery-recipe-name').textContent = '— ' + (currentRecipe.title || 'Untitled');
-  // Build list HTML
   var html = '';
   if (yld && svc && yld !== svc) {
     html += '<p style="font-size:0.82em;color:var(--ink-light);margin-bottom:12px;">Scaled for <strong>' + svc + '</strong> servings (original yield: ' + yld + ')</p>';
@@ -1337,16 +1332,15 @@ function toggleSingleGrocery() {
   document.getElementById('single-grocery-body').innerHTML = html;
   panel.style.display = 'block';
   btn.innerHTML = '<i class="fa-solid fa-cart-shopping"></i> Hide List';
-  // Smooth scroll to panel
   panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function printSingleGrocery() {
-  var list = buildSingleGroceryList();
-  if (!list.length) { toast('No ingredients found in this recipe.'); return; }
+  var list = buildSingleGroceryMap();
+  if (!list.length) { toast('No ingredients found.'); return; }
   var yld = currentRecipe.yield, svc = currentRecipe.servingSize;
   var html = '<h2>Grocery List: ' + escapeHtml(currentRecipe.title) + '</h2>';
-  if (yld && svc) html += '<p>Scaled for ' + svc + ' servings (original: ' + yld + ')</p>';
+  if (yld && svc) html += '<p>Scaled for ' + svc + ' people (original: ' + yld + ')</p>';
   html += '<ol>' + list.map(function(i) {
     var qty  = parseFloat(i.quantity.toFixed(3)).toString().replace(/\.?0+$/, '');
     var unit = (i.unitKey !== 'Units' && i.quantity > 1) ? i.unitName + 's' : i.unitName;
