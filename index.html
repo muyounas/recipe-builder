@@ -1528,8 +1528,6 @@ li.recipe-taskref .ref-qty {
     </div>
     <div class="modal-body">
 
-    <div class="modal-body">
-
       <div style="display:none;">
         <input type="password" id="gemini-key-input">
         <span id="gemini-key-status"></span>
@@ -2959,7 +2957,7 @@ function importFromVideo() {
   statusEl.innerHTML = '<span class="ai-spinner"></span><span>Reading page…</span>';
   statusEl.style.display = 'flex';
 
-  // Try Jina AI reader first — fetches any URL server-side, returns clean markdown
+  // Step 1: Try Jina AI reader (server-side fetch, clean markdown)
   fetch('https://r.jina.ai/' + url, { headers: { 'Accept': 'text/plain', 'X-Return-Format': 'markdown' } })
     .then(function(res) { if (!res.ok) throw new Error('jina_fail'); return res.text(); })
     .then(function(text) {
@@ -2971,22 +2969,9 @@ function importFromVideo() {
       return callClaudeWithText(text, url);
     })
     .catch(function() {
-      // Jina failed — try corsproxy
-      return fetch('https://corsproxy.io/?' + encodeURIComponent(url))
-        .then(function(res) { return res.text(); })
-        .then(function(html) {
-          var text = html
-            .replace(/<script[\s\S]*?<\/script>/gi, '')
-            .replace(/<style[\s\S]*?<\/style>/gi, '')
-            .replace(/<[^>]+>/g, ' ')
-            .replace(/\s{3,}/g, '\n').trim().substring(0, 20000);
-          statusEl.innerHTML = '<span class="ai-spinner"></span><span>Structuring recipe…</span>';
-          return callClaudeWithText(text, url);
-        })
-        .catch(function() {
-          statusEl.innerHTML = '<span class="ai-spinner"></span><span>Searching for recipe…</span>';
-          return callClaudeWithSearch(url);
-        });
+      // Step 2: Jina failed — ask Gemini directly using its knowledge of the URL
+      statusEl.innerHTML = '<span class="ai-spinner"></span><span>Fetching recipe…</span>';
+      return callClaudeWithSearch(url);
     })
     .then(parseImportResponse)
     .then(function(p) { populateRecipeFromParsed(p, statusEl, btn, urlInput, 'Build'); })
@@ -3000,7 +2985,7 @@ function importFromVideo() {
 
 // ── Gemini-powered recipe text extraction (free, no key needed from user) ──────
 // ── AI Import Engine — Gemini Flash (free, paste key once) ──────────────────
-var GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+var GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 var GEMINI_API_KEY = 'AIzaSyCp_jZ9D-EQbPGhGvj4ChyVm2-5PUOt__0';
 function getGeminiKey() {
@@ -3014,7 +2999,7 @@ function saveGeminiKey(val) {
 
 function callAI(textPrompt, imageB64, imageMime) {
   var key = getGeminiKey();
-  if (!key) return Promise.reject(new Error('Please enter your Gemini API key — get one free at aistudio.google.com'));
+  if (!key) return Promise.reject(new Error('AI import is not configured. Please contact support.'));
 
   var parts = [];
   if (imageB64) parts.push({ inline_data: { mime_type: imageMime || 'image/jpeg', data: imageB64 } });
